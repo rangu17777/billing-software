@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AA. Nagare Infra Machinery - Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "secondary-container": "#e4e2e1",
+                        "surface-container-highest": "#e5e2de",
+                        "on-tertiary-fixed-variant": "#494741",
+                        "surface-container": "#f0ede9",
+                        "on-tertiary-fixed": "#1d1c17",
+                        "inverse-on-surface": "#f3f0ec",
+                        "on-surface-variant": "#4e4636",
+                        "on-secondary-container": "#656464",
+                        "primary": "#795900",
+                        "on-primary-fixed-variant": "#5b4300",
+                        "outline-variant": "#d2c5b1",
+                        "on-secondary-fixed": "#1b1c1c",
+                        "inverse-surface": "#31302e",
+                        "error": "#ba1a1a",
+                        "tertiary-container": "#b2aea7",
+                        "on-error-container": "#93000a",
+                        "surface-container-lowest": "#ffffff",
+                        "tertiary-fixed": "#e7e2da",
+                        "secondary": "#5f5e5e",
+                        "surface-bright": "#fcf9f5",
+                        "primary-fixed": "#ffdf9f",
+                        "surface-dim": "#dcdad6",
+                        "on-primary-fixed": "#261a00",
+                        "primary-container": "#d4a843",
+                        "on-tertiary": "#ffffff",
+                        "secondary-fixed": "#e4e2e1",
+                        "surface-variant": "#e5e2de",
+                        "error-container": "#ffdad6",
+                        "on-tertiary-container": "#44423c",
+                        "primary-fixed-dim": "#eec058",
+                        "surface-tint": "#795900",
+                        "secondary-fixed-dim": "#c8c6c6",
+                        "on-primary-container": "#553e00",
+                        "outline": "#807664",
+                        "on-secondary": "#ffffff",
+                        "background": "#fcf9f5",
+                        "surface-container-low": "#f6f3ef",
+                        "surface": "#fcf9f5",
+                        "tertiary-fixed-dim": "#cac6be",
+                        "surface-container-high": "#eae8e4",
+                        "on-surface": "#1c1c1a",
+                        "on-secondary-fixed-variant": "#474747",
+                        "on-background": "#1c1c1a",
+                        "inverse-primary": "#eec058",
+                        "tertiary": "#615e58",
+                        "on-error": "#ffffff",
+                        "on-primary": "#ffffff"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "container-padding-mobile": "20px",
+                        "base": "8px",
+                        "card-gap": "24px",
+                        "container-padding-desktop": "40px",
+                        "gutter": "24px",
+                        "section-margin": "48px"
+                    },
+                    fontFamily: {
+                        "display-md": ["Plus Jakarta Sans"],
+                        "title-md": ["Plus Jakarta Sans"],
+                        "headline-lg-mobile": ["Plus Jakarta Sans"],
+                        "label-md": ["Plus Jakarta Sans"],
+                        "headline-lg": ["Plus Jakarta Sans"],
+                        "display-lg": ["Plus Jakarta Sans"],
+                        "body-lg": ["Plus Jakarta Sans"],
+                        "body-md": ["Plus Jakarta Sans"]
+                    },
+                    fontSize: {
+                        "display-md": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "title-md": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "headline-lg": ["28px", { "lineHeight": "36px", "fontWeight": "600" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        };
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .icon-fill {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        /* Soft Ambient Shadow for pure white cards */
+        .card-shadow {
+            box-shadow: 0 10px 30px rgba(95, 94, 94, 0.08); /* 15% opacity of secondary color, softened */
+        }
+    </style>
+</head>
+<body class="bg-surface font-body-md text-on-surface antialiased">
+<!-- TopNavBar -->
+<nav class="bg-surface/80 backdrop-blur-md dark:bg-surface-dim/80 docked full-width top-0 sticky z-50 border-b border-outline-variant/30 shadow-sm flex justify-between items-center w-full px-container-padding-desktop py-4">
+<!-- Logo -->
+<div class="flex items-center">
+<img alt="AA. Nagare Infra Machinery Logo" class="h-10 w-auto object-contain" src="data:image/png;base64,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"/>
+</div>
+<!-- Navigation Links -->
+<div class="hidden md:flex items-center gap-6">
+<a class="text-primary font-bold border-b-2 border-primary pb-1 font-title-md text-title-md hover:bg-surface-container-high/50 transition-all duration-200 px-2" href="#">Dashboard</a>
+<a class="text-secondary hover:text-primary transition-colors font-title-md text-title-md hover:bg-surface-container-high/50 transition-all duration-200 px-2 rounded-md" href="#">Bills</a>
+<a class="text-secondary hover:text-primary transition-colors font-title-md text-title-md hover:bg-surface-container-high/50 transition-all duration-200 px-2 rounded-md" href="#">Clients</a>
+<a class="text-secondary hover:text-primary transition-colors font-title-md text-title-md hover:bg-surface-container-high/50 transition-all duration-200 px-2 rounded-md" href="#">Machines</a>
+<a class="text-secondary hover:text-primary transition-colors font-title-md text-title-md hover:bg-surface-container-high/50 transition-all duration-200 px-2 rounded-md" href="#">Reports</a>
+<a class="text-secondary hover:text-primary transition-colors font-title-md text-title-md hover:bg-surface-container-high/50 transition-all duration-200 px-2 rounded-md" href="#">Settings</a>
+</div>
+<!-- Trailing Actions -->
+<div class="flex items-center gap-4 text-primary dark:text-primary-fixed-dim">
+<button aria-label="Settings" class="p-2 rounded-full hover:bg-surface-container-high/50 transition-all duration-200">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<button aria-label="Notifications" class="p-2 rounded-full hover:bg-surface-container-high/50 transition-all duration-200">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="h-10 w-10 rounded-full bg-primary-container/20 flex items-center justify-center overflow-hidden border border-outline-variant">
+<img alt="User profile avatar" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCxhxjfXNRsjXYS8yWs0o54XxbHY5pjrtlnYxijppzAjzPTAXGyrXyl-KOekY3X_FLwXyNW3B-i2J45wW5APmpKEYhR9Z4FDOXFTJfYeAHrWq3kzyz5iUBEHRa4cbYTs56YSuS8O6Rjx1oTOP7CrsanS7gW0cJYjfHyE8wFSUMn3YD_FpI_2esCJ5HQZvOBXCq3bju8pDjQ-GA4wwTREQP7vuGrJs9JWX65LFS4476vS7vVbPvMDqObLlIeu4Qa5YU-uhe2aEoS4cNr"/>
+</div>
+</div>
+</nav>
+<!-- Main Container -->
+<main class="w-full max-w-[1440px] mx-auto px-container-padding-mobile md:px-container-padding-desktop py-8 space-y-card-gap">
+<!-- Welcome & Stats Section -->
+<section class="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 mb-section-margin">
+<!-- Welcome -->
+<div class="space-y-4 max-w-2xl">
+<h1 class="font-display-md text-display-md text-on-surface">Welcome back, Admin</h1>
+<!-- Progress Bar -->
+<div class="space-y-2">
+<div class="h-2 w-full bg-surface-container rounded-full overflow-hidden flex">
+<div class="h-full bg-primary-container" style="width: 15%;"></div> <!-- Pending -->
+<div class="h-full bg-primary-fixed-dim" style="width: 15%;"></div> <!-- In Progress -->
+<div class="h-full bg-inverse-surface" style="width: 60%;"></div> <!-- Completed -->
+<div class="h-full bg-outline-variant" style="width: 10%;"></div> <!-- Draft -->
+</div>
+<div class="flex gap-4 font-label-md text-label-md text-secondary">
+<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-primary-container"></span> Pending 15%</span>
+<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-primary-fixed-dim"></span> In Progress 15%</span>
+<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-inverse-surface"></span> Completed 60%</span>
+<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-outline-variant"></span> Draft 10%</span>
+</div>
+</div>
+</div>
+<!-- Stats Row -->
+<div class="flex gap-6">
+<div class="text-right">
+<div class="font-display-lg text-display-lg text-on-surface leading-none">₹4.2L</div>
+<div class="font-label-md text-label-md text-secondary uppercase mt-1">Revenue</div>
+</div>
+<div class="w-px h-12 bg-outline-variant/30 self-center"></div>
+<div class="text-right">
+<div class="font-display-lg text-display-lg text-on-surface leading-none">56</div>
+<div class="font-label-md text-label-md text-secondary uppercase mt-1">Bills</div>
+</div>
+<div class="w-px h-12 bg-outline-variant/30 self-center"></div>
+<div class="text-right">
+<div class="font-display-lg text-display-lg text-on-surface leading-none">23</div>
+<div class="font-label-md text-label-md text-secondary uppercase mt-1">Clients</div>
+</div>
+</div>
+</section>
+</main>
+</body></html>

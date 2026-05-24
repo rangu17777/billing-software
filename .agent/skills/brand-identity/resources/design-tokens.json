@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/07/schema",
+  "version": "1.0.0",
+  "project": "AAN Billing Software",
+  "company": "AA. Nagare Infra Machinery",
+
+  "color": {
+    "primary-red":    { "value": "#D32F2F", "usage": "Primary brand, CTA buttons, header accents, logo" },
+    "primary-orange": { "value": "#E65100", "usage": "Gradient partner, hover states, secondary CTAs" },
+    "navy":           { "value": "#1A237E", "usage": "Page headings, table headers, sidebar background" },
+    "accent-yellow":  { "value": "#FFC107", "usage": "Highlight badges, status indicators, machinery accents" },
+    "white":          { "value": "#FFFFFF", "usage": "Card backgrounds, modal overlays, bill paper base" },
+    "black":          { "value": "#212121", "usage": "Primary body text, bill line item text" },
+    "surface-gray":   { "value": "#F5F5F5", "usage": "Page background, alternating table rows" },
+    "border-light":   { "value": "#E0E0E0", "usage": "Table borders, card dividers, input borders" },
+    "error-red":      { "value": "#B71C1C", "usage": "Error messages, validation failures" },
+    "success-green":  { "value": "#2E7D32", "usage": "Success toasts, saved confirmations" },
+    "text-muted":     { "value": "#757575", "usage": "Secondary labels, placeholder text" },
+    "glass-bg":       { "value": "rgba(255,255,255,0.15)", "usage": "Glassmorphism login card background" },
+    "glass-border":   { "value": "rgba(255,255,255,0.30)", "usage": "Glassmorphism card border" }
+  },
+
+  "gradient": {
+    "brand-hero":     { "value": "linear-gradient(135deg, #D32F2F 0%, #E65100 60%, #FFC107 100%)", "usage": "Login page background, hero sections" },
+    "button-primary": { "value": "linear-gradient(90deg, #D32F2F, #E65100)", "usage": "Primary action buttons" },
+    "sidebar":        { "value": "linear-gradient(180deg, #1A237E 0%, #283593 100%)", "usage": "Sidebar/nav background" }
+  },
+
+  "typography": {
+    "font-family":     { "value": "system-ui, -apple-system, 'Segoe UI', sans-serif", "usage": "All UI text" },
+    "font-mono":       { "value": "'Courier New', Courier, monospace", "usage": "Bill numbers, GST numbers, vehicle numbers" },
+    "font-bill":       { "value": "helvetica", "usage": "jsPDF bill generation font" },
+    "scale": {
+      "xs":   "0.75rem",
+      "sm":   "0.875rem",
+      "base": "1rem",
+      "lg":   "1.125rem",
+      "xl":   "1.25rem",
+      "2xl":  "1.5rem",
+      "3xl":  "1.875rem",
+      "4xl":  "2.25rem"
+    },
+    "weight": {
+      "normal":    400,
+      "medium":    500,
+      "semibold":  600,
+      "bold":      700,
+      "extrabold": 800
+    }
+  },
+
+  "spacing": {
+    "base": "8px",
+    "scale": {
+      "1":  "8px",
+      "2":  "16px",
+      "3":  "24px",
+      "4":  "32px",
+      "5":  "40px",
+      "6":  "48px",
+      "8":  "64px",
+      "10": "80px"
+    }
+  },
+
+  "radius": {
+    "sm":   "4px",
+    "base": "8px",
+    "md":   "12px",
+    "lg":   "16px",
+    "xl":   "24px",
+    "full": "9999px"
+  },
+
+  "shadow": {
+    "card":   "0 2px 8px rgba(0,0,0,0.10)",
+    "modal":  "0 8px 32px rgba(0,0,0,0.18)",
+    "button": "0 2px 4px rgba(211,47,47,0.30)",
+    "glass":  "0 4px 24px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.2)"
+  },
+
+  "transition": {
+    "fast":   "150ms ease",
+    "base":   "250ms ease",
+    "slow":   "400ms ease"
+  },
+
+  "breakpoint": {
+    "sm":  "640px",
+    "md":  "768px",
+    "lg":  "1024px",
+    "xl":  "1280px"
+  },
+
+  "glassmorphism": {
+    "background":      "rgba(255,255,255,0.15)",
+    "border":          "1px solid rgba(255,255,255,0.30)",
+    "backdrop-filter": "blur(16px) saturate(180%)",
+    "border-radius":   "16px",
+    "box-shadow":      "0 4px 24px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.2)"
+  },
+
+  "bill-layout": {
+    "paper":           "A4",
+    "margin-mm":       10,
+    "font":            "helvetica",
+    "header-height-mm": 40,
+    "table-start-y-mm": 55,
+    "footer-height-mm": 60,
+    "columns": {
+      "sr-no":       { "width-mm": 10, "align": "center", "header": "Sr.\nNo." },
+      "date":        { "width-mm": 18, "align": "center", "header": "Date" },
+      "challan":     { "width-mm": 20, "align": "center", "header": "Challan\nNo." },
+      "description": { "width-mm": 45, "align": "left",   "header": "Description" },
+      "vehicle-no":  { "width-mm": 22, "align": "center", "header": "Vehicle\nNo." },
+      "qty-unit":    { "width-mm": 20, "align": "center", "header": "Qty./\nUnit" },
+      "rate":        { "width-mm": 20, "align": "right",  "header": "Rate" },
+      "amount":      { "width-mm": 25, "align": "right",  "header": "Amount" }
+    }
+  }
+}

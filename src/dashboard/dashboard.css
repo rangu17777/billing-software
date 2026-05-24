@@ -1,0 +1,634 @@
+/* AAN Dashboard — Warm Cream SaaS Theme
+   Inspired by: reference dashboard.png (Creatixo style)
+   Living Dashboard Layer additions: KPI pulse ring, 3D tilt, ambient skin, insight banner */
+
+/* ══════════════════════════════════════════════════════════════
+   ⏰ TIME-OF-DAY AMBIENT SKIN
+   JS sets data-ambient="sunrise|solar|twilight|midnight" on <html>.
+   Each skin adjusts the main canvas background gradient & topbar accent.
+   ══════════════════════════════════════════════════════════════ */
+
+/* Light theme ambient backgrounds */
+:root:not([data-theme="dark"])[data-ambient="sunrise"] .app-shell .main-canvas,
+:root[data-theme="light"][data-ambient="sunrise"] .app-shell .main-canvas {
+  background: linear-gradient(180deg, #fff9ec 0%, #fef7e4 60%, #f7f4ef 100%);
+}
+:root:not([data-theme="dark"])[data-ambient="sunrise"] .topbar,
+:root[data-theme="light"][data-ambient="sunrise"] .topbar {
+  border-bottom-color: rgba(201, 162, 39, 0.35);
+  box-shadow: 0 1px 18px rgba(201, 162, 39, 0.10);
+}
+
+:root:not([data-theme="dark"])[data-ambient="solar"] .app-shell .main-canvas,
+:root[data-theme="light"][data-ambient="solar"] .app-shell .main-canvas {
+  background: linear-gradient(180deg, #f8f9fb 0%, #f3f4f6 100%);
+}
+:root:not([data-theme="dark"])[data-ambient="solar"] .topbar,
+:root[data-theme="light"][data-ambient="solar"] .topbar {
+  border-bottom-color: rgba(26, 35, 126, 0.18);
+  box-shadow: 0 1px 18px rgba(26, 35, 126, 0.06);
+}
+
+:root:not([data-theme="dark"])[data-ambient="twilight"] .app-shell .main-canvas,
+:root[data-theme="light"][data-ambient="twilight"] .app-shell .main-canvas {
+  background: linear-gradient(180deg, #f0eefb 0%, #ece9f9 60%, #f1eff5 100%);
+}
+:root:not([data-theme="dark"])[data-ambient="twilight"] .topbar,
+:root[data-theme="light"][data-ambient="twilight"] .topbar {
+  border-bottom-color: rgba(189, 184, 255, 0.45);
+  box-shadow: 0 1px 18px rgba(189, 184, 255, 0.14);
+}
+
+/* Dark theme ambient backgrounds */
+:root[data-theme="dark"][data-ambient="sunrise"] .app-shell .main-canvas {
+  background: linear-gradient(180deg, #1d140e 0%, #0d0a07 100%);
+}
+:root[data-theme="dark"][data-ambient="sunrise"] .topbar {
+  border-bottom-color: rgba(201, 162, 39, 0.25);
+  box-shadow: 0 1px 20px rgba(201, 162, 39, 0.08);
+}
+
+:root[data-theme="dark"][data-ambient="solar"] .app-shell .main-canvas {
+  background: linear-gradient(180deg, #0f1926 0%, #080f18 100%);
+}
+:root[data-theme="dark"][data-ambient="solar"] .topbar {
+  border-bottom-color: rgba(189, 184, 255, 0.2);
+  box-shadow: 0 1px 20px rgba(0, 0, 0, 0.25);
+}
+
+:root[data-theme="dark"][data-ambient="twilight"] .app-shell .main-canvas {
+  background: linear-gradient(180deg, #120e26 0%, #080614 100%);
+}
+:root[data-theme="dark"][data-ambient="twilight"] .topbar {
+  border-bottom-color: rgba(189, 184, 255, 0.25);
+  box-shadow: 0 1px 20px rgba(189, 184, 255, 0.08);
+}
+
+:root[data-theme="dark"][data-ambient="midnight"] .app-shell .main-canvas {
+  background: linear-gradient(180deg, #080f18 0%, #0d1b2a 100%);
+}
+:root[data-theme="dark"][data-ambient="midnight"] .topbar {
+  background: rgba(8, 15, 24, 0.96);
+  border-bottom-color: rgba(201, 162, 39, 0.22);
+  box-shadow: 0 1px 24px rgba(201, 162, 39, 0.08);
+}
+
+.app-shell .main-content {
+  background: #f7f4ef;
+}
+
+/* ── KPI GRID ──────────────────────────────────────────────────── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.kpi-card {
+  background: var(--color-surface-card);
+  border-radius: 18px;
+  padding: 24px 22px 20px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.055);
+  border: 1px solid var(--color-border);
+  transition: transform 200ms, box-shadow 200ms;
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 16px 36px rgba(189,184,255,0.22), 0 8px 24px rgba(0,0,0,0.12);
+  border-color: var(--color-lavender);
+}
+
+/* Gold top-border slide in on hover */
+.kpi-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2.5px;
+  background: linear-gradient(90deg, var(--color-gold-soft, #cfc24c), var(--color-gold, #897E01));
+  border-radius: 18px 18px 0 0;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 300ms cubic-bezier(0.34,1.56,0.64,1);
+  z-index: 1;
+}
+.kpi-card:hover::after { transform: scaleX(1); }
+
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 3px;
+  border-radius: 0 0 18px 18px;
+}
+.kpi-card.kpi-red::before    { background: #d32f2f; }
+.kpi-card.kpi-green::before  { background: #2e7d32; }
+.kpi-card.kpi-orange::before { background: #e65100; }
+.kpi-card.kpi-navy::before   { background: #1a237e; }
+
+.kpi-icon {
+  width: 42px; height: 42px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.3rem;
+  margin-bottom: 14px;
+  position: relative;
+}
+.kpi-icon.red    { background: #ffebee; }
+.kpi-icon.green  { background: #e8f5e9; }
+.kpi-icon.orange { background: #fff3e0; }
+.kpi-icon.navy   { background: #e8eaf6; }
+
+/* ── KPI PULSE RING — Living Dashboard Layer 1 ──────────────── */
+@keyframes kpiPulse {
+  0%   { transform: scale(1);   opacity: 0.55; }
+  60%  { transform: scale(1.82); opacity: 0.12; }
+  100% { transform: scale(2.2);  opacity: 0; }
+}
+
+.kpi-icon::before,
+.kpi-icon::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 16px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Ring 1 — gold tint */
+.kpi-icon::before {
+  border: 1.5px solid rgba(201, 162, 39, 0.6);
+  animation: kpiPulse 2.4s ease-out infinite;
+}
+
+/* Ring 2 — lavender tint, offset phase */
+.kpi-icon::after {
+  border: 1px solid rgba(189, 184, 255, 0.5);
+  animation: kpiPulse 2.4s ease-out 1.2s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kpi-icon::before, .kpi-icon::after { animation: none; opacity: 0; }
+}
+
+/* ── 3D TILT — CSS custom props set by JS via inline style ─── */
+.kpi-card {
+  transform-style: preserve-3d;
+}
+/* tilt is applied via inline style by JS; we just ensure smooth transition */
+.kpi-card:not(:hover) {
+  transition: transform 400ms cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 400ms;
+}
+
+.kpi-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  margin-bottom: 6px;
+}
+
+.kpi-value {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--color-black);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.kpi-value.rupee { font-size: 1.55rem; }
+
+.kpi-sub {
+  font-size: 0.7rem;
+  color: var(--color-muted);
+  margin-top: 6px;
+}
+
+/* ── SECTION CARDS ─────────────────────────────────────────────── */
+.dash-section {
+  background: var(--color-surface-card);
+  border-radius: 18px;
+  border: 1px solid var(--color-border);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+  overflow: hidden;
+}
+
+.dash-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dash-section-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--color-black);
+}
+
+.dash-section-link {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--color-gold);
+  cursor: pointer;
+  text-decoration: none;
+}
+.dash-section-link:hover { text-decoration: underline; }
+
+/* ── RECENT BILLS TABLE ─────────────────────────────────────────── */
+.dash-bills-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.dash-bills-table th {
+  background: var(--color-surface-2);
+  color: var(--color-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 10px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.dash-bills-table td {
+  padding: 11px 16px;
+  font-size: 0.84rem;
+  color: var(--color-black);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dash-bills-table tbody tr:last-child td { border-bottom: none; }
+
+.dash-bills-table tbody tr {
+  transition: background 120ms;
+  cursor: pointer;
+}
+
+.dash-bills-table tbody tr:hover td { background: rgba(137,126,1,0.07); }
+
+/* Blueprint left-glow on row hover */
+.dash-bills-table tbody tr:hover td:first-child {
+  border-left: 3px solid var(--color-gold, #897E01);
+  padding-left: 13px; /* compensate for border width */
+}
+
+/* Dark mode table row */
+:root[data-theme="dark"] .dash-bills-table tbody tr:hover td {
+  background: rgba(28,43,58,0.8);
+}
+:root[data-theme="dark"] .dash-bills-table tbody tr:hover td:first-child {
+  border-left-color: #C9A227;
+  box-shadow: inset 4px 0 16px rgba(201,162,39,0.12);
+}
+
+.bill-no-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #e8eaf6;
+  color: #1a237e;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: monospace;
+  letter-spacing: 0.03em;
+}
+
+.amt-billed  { color: var(--color-black); font-weight: 700; }
+.amt-paid    { color: #2e7d32; font-weight: 600; }
+.amt-due     { color: #e65100; font-weight: 700; }
+.amt-zero    { color: var(--color-muted); }
+
+/* ── QUICK ACTIONS ─────────────────────────────────────────────── */
+.quick-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 16px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 150ms, transform 150ms, border-color 150ms;
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--color-black);
+  text-align: left;
+}
+
+.quick-action-btn:hover {
+  background: var(--color-surface-card);
+  border-color: var(--color-gold-soft);
+  transform: translateX(6px);
+  box-shadow: 0 6px 20px rgba(137,126,1,0.16), -3px 0 12px rgba(137,126,1,0.08);
+}
+
+.qa-icon {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.05rem;
+  flex-shrink: 0;
+}
+.qa-icon.red    { background: #ffebee; }
+.qa-icon.blue   { background: #e3f2fd; }
+.qa-icon.green  { background: #e8f5e9; }
+.qa-icon.yellow { background: #fffde7; }
+
+/* ── COMPLIANCE CARD ───────────────────────────────────────────── */
+.compliance-card {
+  background: linear-gradient(140deg, #1a237e 0%, #283593 100%);
+  border-radius: 18px;
+  padding: 22px 20px;
+  color: white;
+  border: none;
+}
+
+.compliance-card h4 {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.6);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+.compliance-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-bottom: 9px;
+  font-size: 0.76rem;
+  color: rgba(255,255,255,0.82);
+  line-height: 1.4;
+}
+
+.c-dot {
+  width: 5px; height: 5px;
+  background: #ffc107;
+  border-radius: 50%;
+  margin-top: 5px;
+  flex-shrink: 0;
+}
+
+.gstin-badge {
+  margin-top: 16px;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 8px;
+  font-family: monospace;
+  font-size: 0.74rem;
+  color: #ffc107;
+  letter-spacing: 0.05em;
+  text-align: center;
+}
+
+/* ── SKELETON ─────────────────────────────────────────────────── */
+.dash-skel {
+  height: 40px;
+  background: linear-gradient(90deg, var(--color-surface-2) 25%, var(--color-surface-card) 50%, var(--color-surface-2) 75%);
+  background-size: 600px 100%;
+  animation: dashShimmer 1.4s infinite ease-in-out;
+  border-radius: 8px;
+  margin-bottom: 6px;
+}
+
+@keyframes dashShimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position:  600px 0; }
+}
+
+/* ── PRINT BTN ───────────────────────────────────────────────── */
+.dash-print-btn {
+  padding: 5px 10px;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  transition: background 150ms, color 150ms;
+}
+.dash-print-btn:hover { background: rgba(137,126,1,0.12); color: var(--color-gold); }
+
+/* ══════════════════════════════════════════════════════════════
+   📖 MICRO-STORY INSIGHT BANNER — Living Dashboard Layer 2
+   A rotating narrative card that auto-generates contextual
+   observations from existing Supabase data.
+   ══════════════════════════════════════════════════════════════ */
+
+.insight-banner {
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-gold);
+  border-radius: 18px;
+  padding: 18px 22px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 72px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.045);
+}
+
+/* Faint shimmer bar behind the banner */
+.insight-banner::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(201,162,39,0.04) 40%,
+    rgba(189,184,255,0.04) 60%,
+    transparent 100%);
+  animation: insightShimmer 6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes insightShimmer {
+  0%, 100% { opacity: 0; }
+  50%       { opacity: 1; }
+}
+
+.insight-icon {
+  font-size: 1.6rem;
+  flex-shrink: 0;
+  width: 44px;
+  text-align: center;
+}
+
+.insight-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.insight-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+  margin-bottom: 5px;
+}
+
+.insight-text {
+  font-size: 0.875rem;
+  color: var(--color-black);
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.insight-text strong { color: var(--color-gold); font-weight: 700; }
+
+/* Dots navigator */
+.insight-dots {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.insight-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-border);
+  transition: background 300ms, transform 300ms;
+  cursor: pointer;
+}
+
+.insight-dot.active {
+  background: var(--color-gold);
+  transform: scale(1.35);
+}
+
+/* Slide transition — JS toggles .insight-slide-out then .insight-slide-in */
+@keyframes insightSlideOut {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(-18px); }
+}
+
+@keyframes insightSlideIn {
+  from { opacity: 0; transform: translateX(18px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.insight-content-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.insight-content-wrap.slide-out {
+  animation: insightSlideOut 260ms cubic-bezier(0.4,0,1,1) forwards;
+}
+
+.insight-content-wrap.slide-in {
+  animation: insightSlideIn 320ms cubic-bezier(0,0,0.2,1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .insight-content-wrap.slide-out,
+  .insight-content-wrap.slide-in {
+    animation: none;
+    opacity: 1;
+  }
+  .insight-banner::before { animation: none; }
+}
+
+/* Dark mode insight banner */
+:root[data-theme="dark"] .insight-banner {
+  background: var(--color-surface-card);
+  border-color: var(--color-border);
+  border-left-color: var(--color-gold);
+  box-shadow: 0 2px 14px rgba(0,0,0,0.5), 0 0 0 1px rgba(201,162,39,0.08);
+}
+
+:root[data-theme="dark"] .insight-text { color: var(--color-black); }
+
+/* ══════════════════════════════════════════════════════════════
+   🏆 MILESTONE BADGE — dark mode variant
+   ══════════════════════════════════════════════════════════════ */
+#aan-milestone-banner {
+  font-family: var(--font-display, sans-serif);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   📱 DASHBOARD RESPONSIVE BREAKPOINTS
+   ══════════════════════════════════════════════════════════════ */
+
+/* Tablet / small laptop — collapse sidebar panel to full width below content */
+@media (max-width: 860px) {
+  /* The 2-col grid (Recent Bills + Quick Actions sidebar) defined inline in dashboard.js:
+     grid-template-columns: 1fr 280px  →  stack vertically */
+  .dash-2col-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Phone — further compress KPI values and insight banner */
+@media (max-width: 600px) {
+  .kpi-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .kpi-value {
+    font-size: 1.5rem;
+  }
+  .kpi-value.rupee {
+    font-size: 1.2rem;
+  }
+  .kpi-icon {
+    width: 34px;
+    height: 34px;
+    font-size: 1.1rem;
+    margin-bottom: 10px;
+  }
+  .insight-banner {
+    padding: 14px 16px;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .insight-dots {
+    align-self: center;
+  }
+  .quick-action-btn {
+    padding: 10px 12px;
+  }
+  .dash-bills-table th,
+  .dash-bills-table td {
+    padding: 8px 10px;
+    font-size: 0.78rem;
+  }
+}
+
+/* Dashboard outer page container responsive padding */
+.dashboard-page-container {
+  padding: 28px 28px 40px;
+  max-width: 1300px;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .dashboard-page-container {
+    padding: 12px 12px 24px;
+  }
+  .dash-bills-table {
+    min-width: 640px;
+  }
+}
+

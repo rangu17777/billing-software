@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "vercel": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@robinson_ai_systems/vercel-mcp"
+      ],
+      "env": {
+        "VERCEL_TOKEN": "INSERT_VERCEL_API_KEY"
+      }
+    }
+  }
+}

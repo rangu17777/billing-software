@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AAN Billing Software</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="icon" type="image/jpeg" href="/favicon.jpeg" />
+  <link href="https://fonts.googleapis.com/css2?family=Galdeano&family=Josefin+Sans:ital,wght@0,100..700;1,100..700&family=Radley:ital@0;1&display=swap" rel="stylesheet" />
+  <script>
+    // Set theme before CSS paints to avoid a flash of the wrong theme.
+    try {
+      var t = localStorage.getItem('aan-theme') || 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+  </script>
+  <link rel="stylesheet" href="/src/styles/global.css" />
+</head>
+<body>
+  <div id="app"></div>
+  <div id="toast-container"></div>
+  <div id="modal-container"></div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

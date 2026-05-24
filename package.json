@@ -1,0 +1,21 @@
+{
+  "name": "aan-billing-software",
+  "version": "1.0.0",
+  "description": "Billing software for AA. Nagare Infra Machinery",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.4",
+    "firebase": "^10.14.1",
+    "jspdf": "^2.5.2",
+    "jspdf-autotable": "^3.8.4",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "vite": "^5.4.11"
+  }
+}

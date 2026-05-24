@@ -1,0 +1,578 @@
+/* Bill Creator — Sectioned Card Form */
+
+.bill-creator-page { max-width: 1200px; margin: 0 auto; }
+
+/* ── SECTION LABELS ────────────────────────────────────────────────────────── */
+.bc-section-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #d32f2f;
+  margin-bottom: 8px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bc-section-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
+/* ── CARD OVERRIDES FOR BILL CREATOR ───────────────────────────────────────── */
+.bill-creator-page .card {
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+}
+
+/* Client card — left red accent border */
+.bc-client-card {
+  border-left: 4px solid #d32f2f !important;
+}
+
+/* Summary card — cleaner look */
+.bc-summary-card {
+  border-left: 4px solid #e65100 !important;
+}
+
+/* Line items card — no padding (table fills it) */
+.bc-items-card {
+  padding: 0;
+  overflow-x: auto;
+}
+
+/* Summary & payment card */
+.bc-payment-card .form-group label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-muted);
+}
+
+/* ── TABLE IMPROVEMENTS ─────────────────────────────────────────────────────── */
+.bill-creator-page .aan-table thead tr {
+  background: #1a237e;
+}
+
+.bill-creator-page .aan-table thead th {
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 10px 12px;
+  white-space: nowrap;
+  border-color: rgba(255,255,255,0.15);
+}
+
+.bill-creator-page .aan-table tbody tr:nth-child(even) td {
+  background: var(--color-surface-2);
+}
+
+.bill-creator-page .aan-table tbody td {
+  padding: 8px 10px;
+  vertical-align: middle;
+  border-color: var(--color-border);
+}
+
+/* ── GRAND TOTAL DISPLAY ───────────────────────────────────────────────────── */
+#summary-grand-total {
+  background: linear-gradient(135deg, #d32f2f, #e53935);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── ACTION BUTTONS ─────────────────────────────────────────────────────────── */
+.bc-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0 8px;
+  border-top: 1px solid var(--color-border);
+  margin-top: 4px;
+}
+
+.bc-actions .btn-primary {
+  padding: 12px 36px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  border-radius: 10px;
+}
+
+/* ── ADD ROW BUTTON AREA ────────────────────────────────────────────────────── */
+.bc-add-row-bar {
+  padding: 10px 14px;
+  background: var(--color-surface-2);
+  border-top: 1px solid var(--color-border);
+}
+
+/* ── BALANCE DISPLAY ────────────────────────────────────────────────────────── */
+#bill-balance {
+  font-size: 1.3rem;
+  padding: 10px 14px;
+  background: rgba(255,193,7,0.14);
+  border: 1.5px solid #ffc107;
+  border-radius: 10px;
+  color: var(--color-primary-orange);
+  font-weight: 800;
+}
+
+/* ── AMOUNT IN WORDS ────────────────────────────────────────────────────────── */
+#bill-amount-words {
+  color: var(--color-black);
+  font-size: 0.92rem;
+  margin-top: 6px;
+  padding: 10px 14px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+/* ── GST RATE (FIXED 9%) ─────────────────────────────────────────────────────── */
+.gst-rate-row { align-items: center; }
+
+.gst-rate-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+}
+
+.gst-rate-fixed {
+  font-weight: 700;
+  color: #d32f2f;
+}
+
+.gst-amount-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-weight: 600;
+  color: var(--color-black);
+}
+
+.gst-amount-input {
+  width: 78px;
+  padding: 3px 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-align: right;
+  border: 1.5px solid var(--color-border);
+  border-radius: 5px;
+  color: var(--color-black);
+  background: var(--color-surface-card);
+  outline: none;
+  -moz-appearance: textfield;
+}
+.gst-amount-input:hover { border-color: var(--color-gold-soft); }
+.gst-amount-input:focus {
+  border-color: var(--color-gold);
+  box-shadow: 0 0 0 2px rgba(137,126,1,0.18);
+}
+
+#bill-amount-words { transition: border-color var(--duration-base), background var(--duration-base); }
+#bill-amount-words:hover { border-color: var(--color-gold-soft); }
+#bill-balance { transition: border-color var(--duration-base); }
+.gst-amount-input::-webkit-outer-spin-button,
+.gst-amount-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* ── BILL PREVIEW MODAL ──────────────────────────────────────────────────────── */
+.bpm-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 900;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.bpm-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Sticky dark toolbar at top */
+.bpm-toolbar {
+  background: #0f172a;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+.bpm-toolbar-title {
+  color: #fff;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.bpm-toolbar-sub {
+  color: rgba(255,255,255,0.45);
+  font-size: 0.75rem;
+  margin-left: 10px;
+}
+
+.bpm-ghost-btn {
+  border-color: rgba(255,255,255,0.2) !important;
+  color: rgba(255,255,255,0.75) !important;
+}
+.bpm-ghost-btn:hover {
+  background: rgba(255,255,255,0.08) !important;
+  color: #fff !important;
+}
+
+/* Scroll area */
+.bpm-scroll-area {
+  flex: 1;
+  padding: 32px 20px 56px;
+  display: flex;
+  justify-content: center;
+  background: #f0ece4;
+}
+
+/* The white bill "paper" */
+.bpm-paper {
+  background: #fff;
+  width: 100%;
+  max-width: 700px;
+  border: 1px solid #ccc;
+  box-shadow: 0 6px 32px rgba(0,0,0,0.14);
+  padding: 22px 18px 18px 24px;
+  position: relative;
+  font-family: helvetica, Arial, sans-serif;
+  font-size: 0.82rem;
+  color: #222;
+}
+
+/* Left red accent strip */
+.bpm-paper::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 6px;
+  background: #d32f2f;
+}
+
+/* Company header */
+.bpm-company-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.bpm-company-logo {
+  width: 150px;
+  height: auto;
+  margin-bottom: 6px;
+}
+
+.bpm-company-name {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #1a237e;
+  letter-spacing: 0.02em;
+}
+
+.bpm-company-sub {
+  font-size: 0.72rem;
+  color: #444;
+  margin-top: 1px;
+}
+
+.bpm-company-tagline {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #333;
+  margin-top: 2px;
+}
+
+.bpm-company-addr {
+  font-size: 0.68rem;
+  color: #666;
+  margin-top: 1px;
+}
+
+.bpm-red-rule {
+  height: 2px;
+  background: #d32f2f;
+  margin: 10px 0;
+}
+
+/* Client + bill meta two-column */
+.bpm-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 180px;
+  gap: 8px;
+  padding: 8px 0;
+  margin-bottom: 8px;
+  border-top: 1px solid #ddd;
+  border-bottom: 1px solid #ddd;
+}
+
+.bpm-to-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.bpm-to-label { color: #666; font-size: 0.76rem; }
+
+.bpm-client-name {
+  font-weight: 700;
+  font-size: 0.86rem;
+  color: #1c1c1e;
+}
+
+.bpm-site-row {
+  font-size: 0.72rem;
+  color: #666;
+  margin-top: 2px;
+}
+
+.bpm-bill-meta {
+  border: 1px solid #ddd;
+  padding: 0;
+  font-size: 0.74rem;
+}
+
+.bpm-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-bottom: 1px solid #eee;
+}
+.bpm-meta-row:last-child { border-bottom: none; }
+.bpm-meta-row span:first-child { color: #666; }
+.bpm-meta-row strong { color: #1c1c1e; }
+
+/* Line items table */
+.bpm-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.76rem;
+  margin-bottom: 0;
+}
+
+.bpm-items-table th {
+  background: #d32f2f;
+  color: #fff;
+  padding: 6px 7px;
+  text-align: center;
+  font-size: 0.66rem;
+  font-weight: 700;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.bpm-items-table td {
+  padding: 5px 7px;
+  border: 1px solid #ddd;
+  color: #333;
+  vertical-align: middle;
+}
+
+.bpm-items-table tbody tr:nth-child(even):not(.bpm-summary-row) {
+  background: #f9f9f9;
+}
+
+.bpm-summary-row td {
+  background: #fff8e1 !important;
+  font-weight: 600;
+  color: #1a237e !important;
+}
+
+.bpm-amt { text-align: right; font-weight: 700; }
+
+/* Grand total bar */
+.bpm-grand-total-bar {
+  background: #d32f2f;
+  color: #fff;
+  padding: 7px 10px;
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+  font-size: 0.82rem;
+  margin-bottom: 10px;
+}
+
+.bpm-gt-amount {
+  margin-left: auto;
+  font-size: 0.88rem;
+  letter-spacing: 0.01em;
+}
+
+/* Footer grid */
+.bpm-footer-grid {
+  display: grid;
+  grid-template-columns: 1fr 150px;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.bpm-footer-client {
+  border: 1px solid #ddd;
+  padding: 8px 10px;
+  font-size: 0.72rem;
+  color: #555;
+  line-height: 1.7;
+}
+
+.bpm-footer-amounts {
+  border: 1px solid #ddd;
+  overflow: hidden;
+  font-size: 0.74rem;
+}
+
+.bpm-fa-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 8px;
+  border-bottom: 1px solid #eee;
+}
+.bpm-fa-row:last-child { border-bottom: none; }
+
+.bpm-fa-total {
+  background: #d32f2f;
+  color: #fff;
+  font-weight: 700;
+}
+
+.bpm-fa-balance {
+  font-weight: 700;
+  color: #e65100;
+}
+
+/* Rs. in words */
+.bpm-words {
+  padding: 8px 12px;
+  background: #e8eaf6;
+  border-radius: 5px;
+  font-size: 0.78rem;
+  color: #1a237e;
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+
+/* Signature */
+.bpm-signature {
+  text-align: right;
+  font-size: 0.74rem;
+  color: #1a237e;
+  font-weight: 700;
+}
+
+.bpm-sig-line {
+  border-top: 1px solid #333;
+  width: 160px;
+  margin: 22px 0 4px auto;
+}
+
+.bpm-sig-label {
+  color: #888;
+  font-weight: 400;
+  font-size: 0.7rem;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   📱 BILL CREATOR & PREVIEW RESPONSIVE BREAKPOINTS
+   ══════════════════════════════════════════════════════════════ */
+
+/* Small screens / Phones */
+@media (max-width: 480px) {
+  .bc-client-card {
+    min-width: 100% !important;
+  }
+}
+
+@media (max-width: 600px) {
+  /* Actions bar wrapping */
+  .bc-actions {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+  .bc-actions .btn {
+    width: 100% !important;
+    text-align: center;
+  }
+
+  /* Review toolbar stacking */
+  .bpm-toolbar {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+    padding: 12px 16px !important;
+  }
+  .bpm-toolbar div:first-child {
+    display: flex;
+    flex-direction: column;
+  }
+  .bpm-toolbar-sub {
+    margin-left: 0 !important;
+    margin-top: 4px !important;
+    display: block;
+  }
+  .bpm-toolbar div:last-child {
+    width: 100% !important;
+    display: flex;
+    gap: 10px;
+  }
+  .bpm-toolbar .btn {
+    flex: 1;
+    text-align: center;
+    padding: 8px 12px !important;
+    font-size: 0.8rem !important;
+  }
+
+  /* Scroll area & paper margin space minimization */
+  .bpm-scroll-area {
+    padding: 12px 8px 32px !important;
+  }
+  .bpm-paper {
+    padding: 16px 12px 12px 14px !important;
+  }
+
+  /* Client info & billing footer grid column stacking */
+  .bpm-info-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    padding: 8px 0 !important;
+  }
+  .bpm-footer-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* Text size adjustments to prevent column overflow */
+  .bpm-grand-total-bar {
+    font-size: 0.76rem !important;
+    padding: 6px 8px !important;
+  }
+  .bpm-gt-amount {
+    font-size: 0.8rem !important;
+  }
+}
+

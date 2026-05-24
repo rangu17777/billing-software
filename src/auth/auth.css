@@ -1,0 +1,446 @@
+/* AAN Billing — Login Page
+   Theme: Minimalist Luxe Blueprint (brand-tuned)
+   Alpine white + construction-blue grid · navy structure · gold accents · thin red ticks */
+
+:root {
+  --bp-white:   #FAFBFC;
+  --bp-grid:    #E3EAF2;
+  --bp-grid2:   #D7E1EE;
+  --bp-line:    #9DB4CF;
+  --bp-navy:    #1a237e;
+  --bp-gold:    #C8A24B;
+  --bp-gold-br: #E3C36B;
+  --bp-amber:   #B8860B;
+  --bp-red:     #d32f2f;
+}
+
+/* ── PAGE / STAGE ──────────────────────────────────────────────── */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bp-white);
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+  perspective: 1100px;
+}
+
+/* Blueprint grid (fine + coarse) */
+.bp-grid {
+  position: absolute;
+  inset: -2px;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(0deg,   var(--bp-grid) 0 1px, transparent 1px 28px),
+    repeating-linear-gradient(90deg,  var(--bp-grid) 0 1px, transparent 1px 28px),
+    repeating-linear-gradient(0deg,   var(--bp-grid2) 0 1.4px, transparent 1.4px 140px),
+    repeating-linear-gradient(90deg,  var(--bp-grid2) 0 1.4px, transparent 1.4px 140px);
+}
+
+.bp-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 42%, transparent 0%, transparent 48%, rgba(214,225,238,0.5) 100%);
+}
+
+/* ── MACHINERY LAYERS ──────────────────────────────────────────── */
+.bp-layer {
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  will-change: transform;
+  transition: transform 220ms cubic-bezier(0.22,1,0.36,1);
+}
+.bp-layer-1 { left: 3%;   bottom: 8%;  width: 340px; animation: bpFloat 11s ease-in-out infinite; }
+.bp-layer-2 { right: 4%;  top: 10%;    width: 250px; animation: bpFloat 13s ease-in-out infinite reverse; }
+.bp-layer-3 { right: 12%; bottom: 12%; width: 130px; animation: bpSpin 26s linear infinite; }
+.bp-layer-4 { left: 10%;  top: 12%;    width: 96px;  animation: bpSpin 34s linear infinite reverse; }
+
+.bp-machine { width: 100%; height: auto; display: block; opacity: 0.5; }
+.bp-machine .bp-draw,
+.bp-machine path, .bp-machine rect, .bp-machine circle, .bp-machine line {
+  stroke: var(--bp-line);
+  stroke-width: 1.5;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Blueprint draw-in on load */
+.bp-draw {
+  stroke-dasharray: 900;
+  stroke-dashoffset: 900;
+  animation: bpDraw 2.4s ease forwards;
+}
+.bp-layer-2 .bp-draw { animation-delay: 0.25s; }
+.bp-layer-3 .bp-draw { animation-delay: 0.5s; }
+.bp-layer-4 .bp-draw { animation-delay: 0.7s; }
+
+@keyframes bpDraw { to { stroke-dashoffset: 0; } }
+@keyframes bpFloat {
+  0%,100% { transform: translateY(0) rotate(0deg); }
+  50%     { transform: translateY(-14px) rotate(1deg); }
+}
+@keyframes bpSpin { to { transform: rotate(360deg); } }
+
+/* ── FORGE & BLUEPRINT: Grid-zoom login → dashboard ──────────────── */
+@keyframes gridZoomOut {
+  0%   { transform: scale(1);   opacity: 1; filter: blur(0px); }
+  100% { transform: scale(3.5); opacity: 0; filter: blur(10px); }
+}
+@keyframes cardDissolve {
+  0%   { opacity: 1; transform: scale(1); }
+  40%  { opacity: 0; transform: scale(1.06) translateY(-8px); }
+  100% { opacity: 0; transform: scale(1.06) translateY(-8px); }
+}
+.login-page.bp-zoom-out .bp-grid {
+  animation: gridZoomOut 500ms cubic-bezier(0.4,0,1,1) forwards !important;
+}
+.login-page.bp-zoom-out .login-tilt {
+  animation: cardDissolve 320ms cubic-bezier(0.4,0,1,1) forwards !important;
+}
+.login-page.bp-zoom-out .bp-layer,
+.login-page.bp-zoom-out .login-footer {
+  animation: cardDissolve 280ms cubic-bezier(0.4,0,1,1) forwards !important;
+}
+
+
+/* ── TILT WRAPPER ──────────────────────────────────────────────── */
+.login-tilt {
+  position: relative;
+  z-index: 2;
+  transform-style: preserve-3d;
+  transition: transform 220ms cubic-bezier(0.22,1,0.36,1);
+}
+
+/* ── CARD ──────────────────────────────────────────────────────── */
+.login-card {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  padding: 78px 46px 42px;
+  margin-top: 46px;        /* room for the raised plate */
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, #ffffff 0%, #fdfdfb 100%);
+  border: 1px solid #ECEFF3;
+  box-shadow:
+    0 30px 70px rgba(26, 35, 126, 0.13),
+    0 6px 18px rgba(0,0,0,0.05);
+  animation: cardEntrance 600ms cubic-bezier(0,0,0.2,1) both;
+  /* faint linen texture */
+  background-image:
+    linear-gradient(180deg, #ffffff 0%, #fdfdfb 100%),
+    repeating-linear-gradient(45deg, rgba(0,0,0,0.012) 0 2px, transparent 2px 4px);
+}
+
+@keyframes cardEntrance {
+  from { opacity: 0; transform: translateY(26px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* thin red plumb line on the left edge */
+.login-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 16px; bottom: 16px;
+  width: 3px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--bp-red), #b71c1c);
+}
+
+/* ── CORNER REGISTRATION TICKS ─────────────────────────────────── */
+.bp-tick { position: absolute; width: 14px; height: 14px; pointer-events: none; }
+.bp-tick::before, .bp-tick::after { content: ''; position: absolute; background: var(--bp-red); opacity: 0.55; }
+.bp-tick::before { width: 14px; height: 1.5px; top: 0; }
+.bp-tick::after  { width: 1.5px; height: 14px; left: 0; }
+.bp-tick-tl { top: 10px; left: 10px; }
+.bp-tick-tr { top: 10px; right: 10px; transform: scaleX(-1); }
+.bp-tick-bl { bottom: 10px; left: 10px; transform: scaleY(-1); }
+.bp-tick-br { bottom: 10px; right: 10px; transform: scale(-1,-1); }
+
+/* ── HEADER PLATE (raised layer, logo stamp) ───────────────────── */
+.login-plate {
+  position: absolute;
+  top: -46px;
+  left: 50%;
+  transform: translateX(-50%) translateZ(40px);
+  width: 168px;
+  height: 96px;
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, #FCFBF7 0%, #F4F1E8 100%);
+  border: 1px solid #E7E1D2;
+  box-shadow:
+    0 16px 30px rgba(26,35,126,0.16),
+    inset 0 1px 0 rgba(255,255,255,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* raw paper texture */
+  background-image:
+    linear-gradient(180deg, #FCFBF7 0%, #F4F1E8 100%),
+    repeating-linear-gradient(90deg, rgba(120,100,60,0.04) 0 1px, transparent 1px 3px);
+}
+
+.login-logo-wrap {
+  width: 130px; height: 70px;
+  display: flex; align-items: center; justify-content: center;
+}
+.login-logo {
+  max-width: 100%;
+  max-height: 100%;
+  /* pressed-stamp: white background drops into the paper */
+  mix-blend-mode: multiply;
+  filter: saturate(1.02) contrast(1.02);
+}
+
+/* ── HEADINGS ──────────────────────────────────────────────────── */
+.login-title {
+  font-family: var(--font-serif);
+  font-size: 1.7rem;
+  font-weight: 700;
+  letter-spacing: 0.005em;
+  color: var(--bp-navy);
+  text-align: center;
+  margin-bottom: 3px;
+  animation: fadeUp 500ms 150ms cubic-bezier(0,0,0.2,1) both;
+}
+.login-subtitle {
+  font-size: 0.78rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #98a0b3;
+  text-align: center;
+  margin-bottom: 30px;
+  animation: fadeUp 500ms 200ms cubic-bezier(0,0,0.2,1) both;
+}
+
+/* ── FLOATING-LABEL FIELDS ─────────────────────────────────────── */
+#login-form { animation: fadeUp 500ms 250ms cubic-bezier(0,0,0.2,1) both; }
+
+/* ─── FORGE & BLUEPRINT: Light-beam + Crosshair field effects ─── */
+
+/* Light-beam sweep container — clips the travelling beam to the field area */
+.float-field {
+  position: relative;
+  margin-bottom: 26px;
+  overflow: visible;
+}
+
+/* The beam: a diagonal highlight that sweeps once every 3.5s while idle */
+.float-field::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    105deg,
+    transparent 20%,
+    rgba(200,162,75,0.18) 50%,
+    transparent 80%
+  );
+  pointer-events: none;
+  animation: beamScan 3.5s ease-in-out infinite;
+  transform: skewX(-12deg);
+  z-index: 1;
+}
+/* Hide the beam while the field is focused */
+.float-field:focus-within::after {
+  opacity: 0;
+  animation: none;
+}
+
+@keyframes beamScan {
+  0%   { left: -60%; opacity: 0; }
+  8%   { opacity: 1; }
+  55%  { opacity: 1; }
+  70%  { left: 130%; opacity: 0; }
+  100% { left: 130%; opacity: 0; }
+}
+
+/* Crosshair precision ticks — four corners of the field, draw in on focus */
+.float-field::before {
+  content: '';
+  position: absolute;
+  inset: -4px 0;
+  pointer-events: none;
+  z-index: 2;
+  /* Four corner L-shaped ticks using box-shadow tricks */
+  box-shadow: none;
+  transition: box-shadow 0ms;
+}
+.float-field:focus-within::before {
+  /* tick marks at TL + TR + BL + BR corners via box-shadow */
+  box-shadow:
+    /* top-left horizontal */
+    -2px -2px 0 0 var(--bp-gold),
+    /* top-right horizontal */
+    2px -2px 0 0 var(--bp-gold),
+    /* bottom-left horizontal */
+    -2px 2px 0 0 var(--bp-gold),
+    /* bottom-right horizontal */
+    2px 2px 0 0 var(--bp-gold);
+  transition: box-shadow 240ms cubic-bezier(0.34,1.56,0.64,1);
+}
+
+/* Actual crosshair tick marks drawn with inline pseudo wrappers */
+.float-field input {
+  width: 100%;
+  padding: 14px 4px 8px;
+  border: none;
+  border-bottom: 1.5px solid #cdd6e2;
+  background: transparent;
+  color: #1f2733;
+  font-size: 0.98rem;
+  outline: none;
+  position: relative;
+  transition: border-color 220ms cubic-bezier(0.22,1,0.36,1),
+              box-shadow 220ms cubic-bezier(0.22,1,0.36,1);
+  z-index: 2;
+}
+
+.float-field label {
+  position: absolute;
+  left: 4px;
+  top: 14px;
+  color: #9aa3b2;
+  font-size: 0.98rem;
+  pointer-events: none;
+  z-index: 3;
+  transition: all 200ms cubic-bezier(0.22,1,0.36,1);
+}
+
+/* raise + shrink + gold when focused or filled */
+.float-field input:focus + label,
+.float-field input:not(:placeholder-shown) + label {
+  top: -9px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--bp-gold);
+  text-shadow: 0 0 12px rgba(200,162,75,0.4);
+}
+
+/* Enhanced focus — glowing gold underline + faint blueprint-grid inner tint */
+.float-field input:focus {
+  border-bottom-color: var(--bp-gold);
+  box-shadow: 0 3px 0 -1px rgba(200,162,75,0.55),
+              0 6px 18px -4px rgba(200,162,75,0.20);
+  background: linear-gradient(0deg,
+    rgba(200,162,75,0.04) 0%,
+    transparent 100%
+  );
+}
+
+/* Corner tick L-shapes — pure CSS, drawn with a clip trick */
+.float-tick {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+  z-index: 4;
+  opacity: 0;
+  transition: opacity 200ms, transform 200ms cubic-bezier(0.34,1.56,0.64,1);
+}
+.float-field:focus-within .float-tick { opacity: 1; }
+
+.float-tick::before,
+.float-tick::after {
+  content: '';
+  position: absolute;
+  background: var(--bp-gold);
+}
+.float-tick::before { width: 10px; height: 1.5px; top: 0; left: 0; }
+.float-tick::after  { width: 1.5px; height: 10px; top: 0; left: 0; }
+
+.float-tick-tl { top: -4px; left: 0; }
+.float-tick-tr { top: -4px; right: 0; transform: scaleX(-1); }
+.float-tick-tr.float-tick::before { transform-origin: right; }
+.float-tick-bl { bottom: 0; left: 0; transform: scaleY(-1); }
+.float-tick-br { bottom: 0; right: 0; transform: scale(-1,-1); }
+
+/* ── LIQUID-FILL BUTTON ────────────────────────────────────────── */
+.btn-login {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  margin-top: 14px;
+  padding: 15px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 0.96rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #4a3a12;
+  background: linear-gradient(180deg, var(--bp-gold-br), var(--bp-gold));
+  box-shadow: 0 8px 22px rgba(184,134,11,0.32);
+  justify-content: center;
+  transition: transform 150ms, box-shadow 250ms, color 250ms;
+}
+/* amber liquid wave rising on hover */
+.btn-login::before {
+  content: '';
+  position: absolute;
+  left: -10%;
+  bottom: -120%;
+  width: 120%;
+  height: 130%;
+  background: radial-gradient(120% 100% at 50% 0%, #9a6f08 0%, var(--bp-amber) 60%);
+  border-radius: 46% 46% 0 0 / 60% 60% 0 0;
+  transition: bottom 480ms cubic-bezier(0.22,1,0.36,1);
+  z-index: 0;
+}
+.btn-login .btn-login-text,
+.btn-login .spinner { position: relative; z-index: 1; }
+.btn-login:hover:not(:disabled) {
+  transform: translateY(-2px);
+  color: #fff;
+  box-shadow: 0 12px 30px rgba(184,134,11,0.45);
+}
+.btn-login:hover:not(:disabled)::before { bottom: -18%; }
+.btn-login:active:not(:disabled) { transform: translateY(0); }
+.btn-login:disabled { opacity: 0.65; cursor: not-allowed; }
+
+/* ── FOOTER ────────────────────────────────────────────────────── */
+.login-footer {
+  margin-top: 30px;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  color: rgba(26,35,126,0.4);
+  text-align: center;
+  position: relative;
+  z-index: 2;
+  animation: fadeIn 800ms 600ms both;
+}
+
+/* ── SHARED ANIMATIONS ─────────────────────────────────────────── */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ── RESPONSIVE ────────────────────────────────────────────────── */
+@media (max-width: 720px) {
+  .bp-layer-3, .bp-layer-4 { display: none; }
+  .bp-layer-1 { width: 240px; opacity: 0.7; }
+  .bp-layer-2 { width: 180px; opacity: 0.7; }
+  .login-card { padding: 72px 30px 36px; }
+}
+
+/* ── ACCESSIBILITY: reduced motion ─────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .bp-layer, .login-tilt { transition: none !important; transform: none !important; }
+  .bp-layer-1, .bp-layer-2, .bp-layer-3, .bp-layer-4 { animation: none !important; }
+  .bp-draw { animation: none !important; stroke-dashoffset: 0 !important; }
+  .login-card, .login-title, .login-subtitle, #login-form, .login-footer { animation: none !important; }
+  .btn-login::before { transition: none; }
+}
