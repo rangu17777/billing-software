@@ -1254,6 +1254,22 @@ html { scroll-behavior: smooth; }
   }
 }
 
+@media (max-width: 600px) {
+  /* Stack the bills/clients control rows and let search go full width */
+  .bills-list-page > .card.flex,
+  .clients-page > .card.flex {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+  .bills-list-page #bill-search,
+  .clients-page #search-input { max-width: 100% !important; }
+  /* Bigger tap targets for table action buttons on touch screens */
+  .aan-table .btn { min-height: 36px; }
+  /* KPI/stat cards: full width so amounts never clip */
+  .bills-list-page > .flex > .card.card-stat,
+  .clients-page > .flex > .card.card-stat { min-width: 100% !important; }
+}
+
 @media (max-width: 480px) {
   h1 { font-size: 1.4rem !important; }
   h2 { font-size: 1.2rem !important; }

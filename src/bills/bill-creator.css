@@ -496,6 +496,45 @@
   font-size: 0.7rem;
 }
 
+/* ── MOBILE RESPONSIVE — Bill Creator form ─────────────────────────────────── */
+@media (max-width: 680px) {
+  /* Stack the Bill Header card and the Grand-Total summary card */
+  .bc-client-card,
+  .bc-summary-card {
+    min-width: 100% !important;
+    flex: 1 1 100% !important;
+  }
+  /* Stack the action bar buttons full-width */
+  .bc-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .bc-actions > .flex { width: 100%; }
+  .bc-actions .btn { flex: 1; }
+}
+
+/* ── MOBILE RESPONSIVE — Bill preview modal ────────────────────────────────── */
+@media (max-width: 640px) {
+  .bpm-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+  .bpm-toolbar > div:last-child { display: flex; gap: 8px; }
+  .bpm-toolbar .btn { flex: 1; padding: 10px 12px !important; }
+  .bpm-scroll-area { padding: 16px 8px 40px; }
+  .bpm-paper { padding: 16px 12px 16px 16px; font-size: 0.74rem; }
+  .bpm-info-grid { grid-template-columns: 1fr; }
+  .bpm-bill-meta { width: 100%; }
+  .bpm-footer-grid { grid-template-columns: 1fr; }
+  /* Let the invoice line-items table scroll horizontally instead of squashing */
+  .bpm-items-table { font-size: 0.66rem; }
+  .bpm-items-table th,
+  .bpm-items-table td { padding: 4px 5px; }
+}
+
 /* ══════════════════════════════════════════════════════════════
    📱 BILL CREATOR & PREVIEW RESPONSIVE BREAKPOINTS
    ══════════════════════════════════════════════════════════════ */
