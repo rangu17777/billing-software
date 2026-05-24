@@ -571,6 +571,12 @@
    📱 DASHBOARD RESPONSIVE BREAKPOINTS
    ══════════════════════════════════════════════════════════════ */
 
+/* Allow the grid + section to shrink so the Recent Bills table can scroll
+   horizontally inside its wrapper (instead of forcing the page wider / clipping). */
+.dash-2col-grid { min-width: 0; }
+.dash-2col-grid > div { min-width: 0; }
+.dash-section { min-width: 0; }
+
 /* Tablet / small laptop — collapse sidebar panel to full width below content */
 @media (max-width: 860px) {
   /* The 2-col grid (Recent Bills + Quick Actions sidebar) defined inline in dashboard.js:

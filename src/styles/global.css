@@ -1255,14 +1255,30 @@ html { scroll-behavior: smooth; }
 }
 
 @media (max-width: 600px) {
-  /* Stack the bills/clients control rows and let search go full width */
+  /* Stack the bills/clients control rows */
   .bills-list-page > .card.flex,
   .clients-page > .card.flex {
     flex-direction: column;
     align-items: stretch !important;
   }
+  /* Inner control groups (tabs row, search+button row) go full width */
+  .bills-list-page > .card.flex > .flex,
+  .clients-page > .card.flex > .flex {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    justify-content: stretch;
+  }
+  /* Clients: equal-width master tabs */
+  .clients-page #tab-clients,
+  .clients-page #tab-machines { flex: 1; }
+  /* Search fields fill their row */
   .bills-list-page #bill-search,
-  .clients-page #search-input { max-width: 100% !important; }
+  .clients-page #search-input { max-width: 100% !important; flex: 1; }
+  /* Action buttons share the row evenly */
+  .clients-page #add-btn,
+  .bills-list-page #excel-export-btn,
+  .bills-list-page > .card.flex .btn-primary { flex: 1; white-space: nowrap; }
   /* Bigger tap targets for table action buttons on touch screens */
   .aan-table .btn { min-height: 36px; }
   /* KPI/stat cards: full width so amounts never clip */

@@ -1141,6 +1141,7 @@ function showBillPreviewModal(container) {
             </div>
 
             <!-- Line items -->
+            <div class="bpm-table-scroll">
             <table class="bpm-items-table">
               <thead>
                 <tr>
@@ -1167,6 +1168,7 @@ function showBillPreviewModal(container) {
                 </tr>
               </tbody>
             </table>
+            </div>
 
             <!-- Grand total bar -->
             <div class="bpm-grand-total-bar">

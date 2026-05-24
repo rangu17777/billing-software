@@ -514,6 +514,13 @@
   .bc-actions .btn { flex: 1; }
 }
 
+/* Invoice line-items table is horizontally scrollable so it never overflows the paper */
+.bpm-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* ── MOBILE RESPONSIVE — Bill preview modal ────────────────────────────────── */
 @media (max-width: 640px) {
   .bpm-toolbar {
@@ -529,8 +536,8 @@
   .bpm-info-grid { grid-template-columns: 1fr; }
   .bpm-bill-meta { width: 100%; }
   .bpm-footer-grid { grid-template-columns: 1fr; }
-  /* Let the invoice line-items table scroll horizontally instead of squashing */
-  .bpm-items-table { font-size: 0.66rem; }
+  /* Keep the invoice table readable and scroll it instead of squashing the paper */
+  .bpm-items-table { font-size: 0.68rem; min-width: 520px; }
   .bpm-items-table th,
   .bpm-items-table td { padding: 4px 5px; }
 }
