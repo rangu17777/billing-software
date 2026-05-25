@@ -2,7 +2,7 @@ import { supabase } from '../shared/supabase.js';
 import { renderShell, attachShellEvents } from '../shared/shell.js';
 import { handleError } from '../shared/error-handler.js';
 import { showToast, showConfirm } from '../shared/toast.js';
-import { toDecimalHours, toAanHoursDisplay } from '../shared/hours-utils.js';
+import { toDecimalFromAan } from '../shared/hours-utils.js';
 import { amountInWords } from '../shared/amount-words.js';
 import { startAutosave, loadDraft, clearDraft } from '../shared/draft-manager.js';
 import './bill-creator.css';
@@ -46,11 +46,9 @@ function newBlankRow(srNo, prevDate = '') {
     vehicle_no: '',
     qty_unit: '',
     qty_decimal: 0,
-    hours: 0,
-    minutes: 0,
-    days: 1,
     rate: 0,
     amount: 0,
+    amount_manual: false,
     rate_type: 'hourly'
   };
 }
@@ -304,29 +302,58 @@ function renderForm(container, showDraftPrompt = false, draft = null) {
   });
 }
 
+// ── Qty / Amount cell builders ────────────────────────────────────────────────
+function fmtMult(n) {
+  return Number.isInteger(n) ? String(n) : parseFloat(n.toFixed(2)).toString();
+}
+
+function qtyAutoHint(item) {
+  if (item.amount_manual) return 'manual';
+  const mult = parseQtyToMultiplier(item.qty_unit, item.rate_type);
+  if (mult == null) return '';
+  if (item.rate > 0) {
+    const amt = Math.round(mult * item.rate);
+    return `auto: ${fmtMult(mult)} × ₹${item.rate.toLocaleString('en-IN')} = ₹${amt.toLocaleString('en-IN')}`;
+  }
+  return `qty ${fmtMult(mult)}`;
+}
+
+function buildQtyCellHtml(item, idx) {
+  const chipsHtml = getQtyPresets().map(p => `
+    <button type="button" class="qty-chip" data-index="${idx}" data-fill="${escapeHtml(p)}"
+      title="Insert &quot;${escapeHtml(p)}&quot; (right-click to remove)">${escapeHtml(p)}</button>
+  `).join('');
+  return `
+    <div class="qty-cell" data-index="${idx}">
+      <input type="text" class="row-qty" data-index="${idx}"
+        value="${escapeHtml(item.qty_unit)}" autocomplete="off"
+        placeholder="e.g. 7.30, full day, 2/full day, 5 brass" />
+      <div class="qty-chips">
+        ${chipsHtml}
+        <button type="button" class="qty-chip qty-chip-hrs" data-index="${idx}" title="Hours picker (any minutes)">Hrs…</button>
+        <button type="button" class="qty-chip qty-chip-add" data-index="${idx}" title="Add a quick-fill unit">＋</button>
+      </div>
+      <div class="qty-auto-hint" data-index="${idx}">${escapeHtml(qtyAutoHint(item))}</div>
+    </div>
+  `;
+}
+
+function buildAmountCellHtml(item, idx) {
+  return `
+    <div class="amount-cell">
+      <input type="number" class="row-amount" data-index="${idx}"
+        value="${item.amount || 0}" min="0" />
+      <button type="button" class="amount-reset ${item.amount_manual ? '' : 'hidden'}"
+        data-index="${idx}" title="Reset to auto-calculated amount">↺</button>
+    </div>
+  `;
+}
+
 // ── Line item row HTML ────────────────────────────────────────────────────────
 function renderLineItemRows() {
   return billData.lineItems.map((item, idx) => {
-    const qtyHtml = item.rate_type === 'hourly' ? `
-      <div class="flex gap-1 items-center">
-        <input type="number" class="row-hours" data-index="${idx}"
-          value="${item.hours || 0}" min="0"
-          style="padding:6px 8px;font-size:var(--text-sm);flex:1;width:56px" placeholder="Hrs" />
-        <span style="font-size:0.8rem;color:var(--color-muted);font-weight:700">h</span>
-        <select class="row-minutes" data-index="${idx}"
-          style="padding:6px 8px;font-size:var(--text-sm);flex:1;width:62px">
-          <option value="0"  ${item.minutes === 0  ? 'selected' : ''}>00</option>
-          <option value="15" ${item.minutes === 15 ? 'selected' : ''}>15</option>
-          <option value="30" ${item.minutes === 30 ? 'selected' : ''}>30</option>
-          <option value="45" ${item.minutes === 45 ? 'selected' : ''}>45</option>
-        </select>
-        <span style="font-size:0.8rem;color:var(--color-muted);font-weight:700">m</span>
-      </div>
-    ` : `
-      <input type="number" class="row-days" data-index="${idx}"
-        value="${item.days || 1}" min="0.25" step="0.25"
-        style="padding:6px 8px;font-size:var(--text-sm);width:100%" placeholder="Days" />
-    `;
+    const qtyHtml = buildQtyCellHtml(item, idx);
+    const amountHtml = buildAmountCellHtml(item, idx);
 
     return `
       <tr class="line-item-row" data-index="${idx}">
@@ -367,9 +394,7 @@ function renderLineItemRows() {
             value="${item.rate}" min="0"
             style="padding:6px 8px;font-size:var(--text-sm);font-weight:600;text-align:right;width:100%" />
         </td>
-        <td class="font-semibold text-right" style="padding-top:14px;font-size:var(--text-sm)">
-          ₹${parseFloat(item.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-        </td>
+        <td>${amountHtml}</td>
         <td style="text-align:center">
           ${billData.lineItems.length > 1 ? `
             <button type="button" class="btn btn-danger remove-row-btn" data-index="${idx}"
@@ -676,38 +701,80 @@ function attachLineItemsEvents(container) {
     });
   });
 
-  // Hours
-  tbody.querySelectorAll('.row-hours').forEach(input => {
+  // Qty / Unit (freeform text)
+  tbody.querySelectorAll('.row-qty').forEach(input => {
     input.addEventListener('input', (e) => {
       const idx = parseInt(e.target.getAttribute('data-index'), 10);
-      billData.lineItems[idx].hours = parseInt(e.target.value, 10) || 0;
+      billData.lineItems[idx].qty_unit = e.target.value;
       calculateRowAmount(idx);
       updateRowAmountDisplay(container, idx);
       recalculateTotals();
       updateTotalDisplays(container);
     });
+    input.addEventListener('focus', (e) => e.target.select());
   });
 
-  // Minutes
-  tbody.querySelectorAll('.row-minutes').forEach(select => {
-    select.addEventListener('change', (e) => {
-      const idx = parseInt(e.target.getAttribute('data-index'), 10);
-      billData.lineItems[idx].minutes = parseInt(e.target.value, 10) || 0;
+  // Quick-fill preset chips
+  tbody.querySelectorAll('.qty-chip[data-fill]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx  = parseInt(btn.getAttribute('data-index'), 10);
+      const fill = btn.getAttribute('data-fill');
+      const qtyInput = tbody.querySelector(`.row-qty[data-index="${idx}"]`);
+      const current  = (qtyInput?.value || '').trim();
+      // If a bare number is already typed, combine: "2" + "full day" → "2/full day"
+      const numOnly = /^\d+(?:\.\d+)?$/.test(current) ? current : '';
+      const value   = numOnly ? `${numOnly}/${fill}` : fill;
+      billData.lineItems[idx].qty_unit      = value;
+      billData.lineItems[idx].amount_manual = false;
+      if (qtyInput) qtyInput.value = value;
       calculateRowAmount(idx);
       updateRowAmountDisplay(container, idx);
       recalculateTotals();
       updateTotalDisplays(container);
     });
+    // Right-click / long-press to remove this preset
+    btn.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      const label = btn.getAttribute('data-fill');
+      showConfirm('Remove unit', `Remove "${label}" from quick-fill units?`, () => {
+        removeQtyPreset(label);
+        refreshLineItems(container);
+      });
+    });
   });
 
-  // Days
-  tbody.querySelectorAll('.row-days').forEach(input => {
+  // Hours picker chip
+  tbody.querySelectorAll('.qty-chip-hrs').forEach(btn => {
+    btn.addEventListener('click', () => {
+      openHoursPopover(container, parseInt(btn.getAttribute('data-index'), 10));
+    });
+  });
+
+  // Add custom preset chip
+  tbody.querySelectorAll('.qty-chip-add').forEach(btn => {
+    btn.addEventListener('click', () => {
+      openAddPresetPopover(container, parseInt(btn.getAttribute('data-index'), 10));
+    });
+  });
+
+  // Amount (editable — manual override)
+  tbody.querySelectorAll('.row-amount').forEach(input => {
     input.addEventListener('input', (e) => {
       const idx = parseInt(e.target.getAttribute('data-index'), 10);
-      const days = parseFloat(e.target.value) || 0;
-      billData.lineItems[idx].days        = days;
-      billData.lineItems[idx].qty_decimal = days;
-      billData.lineItems[idx].qty_unit    = days === 1 ? '1 full day' : `${days} days`;
+      billData.lineItems[idx].amount        = parseFloat(e.target.value) || 0;
+      billData.lineItems[idx].amount_manual = true;
+      updateRowAmountDisplay(container, idx);
+      recalculateTotals();
+      updateTotalDisplays(container);
+    });
+    input.addEventListener('focus', (e) => e.target.select());
+  });
+
+  // Reset amount to auto-calculated
+  tbody.querySelectorAll('.amount-reset').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.getAttribute('data-index'), 10);
+      billData.lineItems[idx].amount_manual = false;
       calculateRowAmount(idx);
       updateRowAmountDisplay(container, idx);
       recalculateTotals();
@@ -725,6 +792,7 @@ function attachLineItemsEvents(container) {
       recalculateTotals();
       updateTotalDisplays(container);
     });
+    input.addEventListener('focus', (e) => e.target.select());
   });
 
   // Date
@@ -733,6 +801,7 @@ function attachLineItemsEvents(container) {
       const idx = parseInt(e.target.getAttribute('data-index'), 10);
       billData.lineItems[idx].date = e.target.value;
     });
+    input.addEventListener('focus', (e) => e.target.select());
   });
 
   // Challan
@@ -755,26 +824,101 @@ function attachLineItemsEvents(container) {
   });
 }
 
+// ── Qty popovers (hours picker + add preset) ──────────────────────────────────
+function closeQtyPopovers(container) {
+  container.querySelectorAll('.qty-popover').forEach(p => p.remove());
+}
+
+function openHoursPopover(container, idx) {
+  closeQtyPopovers(container);
+  const cell = container.querySelector(`.qty-cell[data-index="${idx}"]`);
+  if (!cell) return;
+  const item = billData.lineItems[idx];
+  const match = String(item.qty_unit || '').trim().match(/^(\d+)\.(\d{1,2})$/);
+  const h = match ? match[1] : '';
+  const m = match ? match[2] : '';
+
+  const pop = document.createElement('div');
+  pop.className = 'qty-popover';
+  pop.innerHTML = `
+    <div class="qty-popover-row">
+      <input type="number" class="qpop-h" min="0" placeholder="Hrs" value="${h}" />
+      <span>h</span>
+      <input type="number" class="qpop-m" min="0" max="59" placeholder="Min" value="${m}" />
+      <span>m</span>
+    </div>
+    <div class="qty-popover-actions">
+      <button type="button" class="btn btn-ghost qpop-cancel">Cancel</button>
+      <button type="button" class="btn btn-primary qpop-apply">Apply</button>
+    </div>
+  `;
+  cell.appendChild(pop);
+  pop.querySelector('.qpop-h').focus();
+
+  pop.querySelector('.qpop-cancel').addEventListener('click', () => pop.remove());
+  pop.querySelector('.qpop-apply').addEventListener('click', () => {
+    const hv = parseInt(pop.querySelector('.qpop-h').value, 10) || 0;
+    let   mv = parseInt(pop.querySelector('.qpop-m').value, 10) || 0;
+    if (mv > 59) mv = 59;
+    const value = `${hv}.${String(mv).padStart(2, '0')}`;
+    billData.lineItems[idx].qty_unit      = value;
+    billData.lineItems[idx].amount_manual = false;
+    const qtyInput = container.querySelector(`.row-qty[data-index="${idx}"]`);
+    if (qtyInput) qtyInput.value = value;
+    pop.remove();
+    calculateRowAmount(idx);
+    updateRowAmountDisplay(container, idx);
+    recalculateTotals();
+    updateTotalDisplays(container);
+  });
+}
+
+function openAddPresetPopover(container, idx) {
+  closeQtyPopovers(container);
+  const cell = container.querySelector(`.qty-cell[data-index="${idx}"]`);
+  if (!cell) return;
+
+  const pop = document.createElement('div');
+  pop.className = 'qty-popover';
+  pop.innerHTML = `
+    <div class="qty-popover-row">
+      <input type="text" class="qpop-label" placeholder="e.g. brass, trip, load" />
+    </div>
+    <div class="qty-popover-actions">
+      <button type="button" class="btn btn-ghost qpop-cancel">Cancel</button>
+      <button type="button" class="btn btn-primary qpop-add">Add</button>
+    </div>
+  `;
+  cell.appendChild(pop);
+  const inp = pop.querySelector('.qpop-label');
+  inp.focus();
+
+  const doAdd = () => {
+    const v = inp.value.trim();
+    pop.remove();
+    if (!v) return;
+    addQtyPreset(v);
+    refreshLineItems(container);
+    showToast(`Added quick-fill "${v}".`, 'success');
+  };
+  pop.querySelector('.qpop-cancel').addEventListener('click', () => pop.remove());
+  pop.querySelector('.qpop-add').addEventListener('click', doAdd);
+  inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); doAdd(); } });
+}
+
 // ── Machine helpers ───────────────────────────────────────────────────────────
 function applyMachineSelection(machine, idx, container) {
-  billData.lineItems[idx].machine_id  = machine.id;
-  billData.lineItems[idx].description = machine.description;
-  billData.lineItems[idx].vehicle_no  = machine.vehicle_no;
-  billData.lineItems[idx].rate_type   = machine.rate_type;
-  billData.lineItems[idx].rate        = parseFloat(machine.default_rate) || 0;
+  billData.lineItems[idx].machine_id    = machine.id;
+  billData.lineItems[idx].description   = machine.description;
+  billData.lineItems[idx].vehicle_no    = machine.vehicle_no;
+  billData.lineItems[idx].rate_type     = machine.rate_type;
+  billData.lineItems[idx].rate          = parseFloat(machine.default_rate) || 0;
+  billData.lineItems[idx].amount_manual = false;
 
-  if (machine.rate_type === 'hourly') {
-    billData.lineItems[idx].hours      = 0;
-    billData.lineItems[idx].minutes    = 0;
-    billData.lineItems[idx].qty_decimal= 0;
-    billData.lineItems[idx].qty_unit   = '0.00';
-    billData.lineItems[idx].amount     = 0;
-  } else {
-    billData.lineItems[idx].days       = 1;
-    billData.lineItems[idx].qty_decimal= 1;
-    billData.lineItems[idx].qty_unit   = '1 full day';
-    billData.lineItems[idx].amount     = parseFloat(machine.default_rate) || 0;
-  }
+  // Seed a sensible default qty: hourly → blank (placeholder guides typing),
+  // day-based → "full day". Amount auto-fills from the parser.
+  billData.lineItems[idx].qty_unit = machine.rate_type === 'hourly' ? '' : 'full day';
+  calculateRowAmount(idx);
 
   // Update the input value
   const inp = container.querySelector(`#machine-combo-${idx} .row-machine-input`);
@@ -793,10 +937,15 @@ function updateRowVehicleDisplay(container, idx) {
 }
 
 function updateRowAmountDisplay(container, idx) {
+  const item = billData.lineItems[idx];
   const row = container.querySelector(`.line-item-row[data-index="${idx}"]`);
   if (!row) return;
-  const amtCell = row.querySelectorAll('td')[7];
-  if (amtCell) amtCell.textContent = `₹${parseFloat(billData.lineItems[idx].amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+  const amtInput = row.querySelector('.row-amount');
+  if (amtInput && amtInput !== document.activeElement) amtInput.value = item.amount || 0;
+  const resetBtn = row.querySelector('.amount-reset');
+  if (resetBtn) resetBtn.classList.toggle('hidden', !item.amount_manual);
+  const hint = row.querySelector('.qty-auto-hint');
+  if (hint) hint.textContent = qtyAutoHint(item);
 }
 
 // ── Dropdown helpers ──────────────────────────────────────────────────────────
@@ -816,16 +965,73 @@ function handleOutsideClick(e) {
   }
 }
 
+// ── Qty parsing ───────────────────────────────────────────────────────────────
+// Derives a numeric multiplier from the freeform qty/unit text so the amount can
+// auto-fill. Returns null when nothing sensible can be parsed (admin types amount).
+// Examples: "full day"→1, "half day"→0.5, "2/full day"→2, "5 brass"→5,
+//           "7.30"(hourly)→7.5, "6.40"(hourly)→6.667, "8"(hourly)→8.
+function parseQtyToMultiplier(text, rateType) {
+  if (text == null) return null;
+  const t = String(text).trim().toLowerCase();
+  if (!t) return null;
+
+  const leadingMatch = t.match(/^(\d+(?:\.\d+)?)/);
+  const leadingNum = leadingMatch ? parseFloat(leadingMatch[1]) : null;
+  const hasWord = /[a-z]/.test(t);
+
+  if (hasWord) {
+    if (/half\s*day/.test(t))    return leadingNum != null ? leadingNum * 0.5  : 0.5;
+    if (/quarter\s*day/.test(t)) return leadingNum != null ? leadingNum * 0.25 : 0.25;
+    if (/full\s*day/.test(t))    return leadingNum != null ? leadingNum        : 1;
+    // generic unit word (brass, day(s), trip, load, …) → leading number, else 1
+    return leadingNum != null ? leadingNum : 1;
+  }
+
+  // pure numeric
+  if (rateType === 'hourly') {
+    try {
+      const dec = toDecimalFromAan(t); // "6.40" → 6.667, "8" → 8
+      if (!isNaN(dec)) return dec;
+    } catch { /* invalid minutes (>59) → fall through to plain number */ }
+  }
+  const n = parseFloat(t);
+  return isNaN(n) ? null : n;
+}
+
+// ── Admin-controlled qty quick-fill presets (localStorage) ─────────────────────
+const QTY_PRESETS_KEY = 'aan-qty-presets';
+const DEFAULT_QTY_PRESETS = ['full day', 'half day', 'brass'];
+
+function getQtyPresets() {
+  try {
+    const raw = localStorage.getItem(QTY_PRESETS_KEY);
+    if (!raw) return [...DEFAULT_QTY_PRESETS];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [...DEFAULT_QTY_PRESETS];
+  } catch { return [...DEFAULT_QTY_PRESETS]; }
+}
+function saveQtyPresets(list) {
+  try { localStorage.setItem(QTY_PRESETS_KEY, JSON.stringify(list)); } catch { /* ignore */ }
+}
+function addQtyPreset(label) {
+  const v = String(label || '').trim();
+  const list = getQtyPresets();
+  if (v && !list.some(x => x.toLowerCase() === v.toLowerCase())) { list.push(v); saveQtyPresets(list); }
+  return list;
+}
+function removeQtyPreset(label) {
+  const list = getQtyPresets().filter(x => x.toLowerCase() !== String(label).toLowerCase());
+  saveQtyPresets(list);
+  return list;
+}
+
 // ── Calculations ──────────────────────────────────────────────────────────────
 function calculateRowAmount(idx) {
   const item = billData.lineItems[idx];
-  if (item.rate_type === 'hourly') {
-    const dec = toDecimalHours(item.hours, item.minutes);
-    item.qty_decimal = dec;
-    item.qty_unit    = toAanHoursDisplay(dec);
-    item.amount      = Math.round(dec * item.rate);
-  } else {
-    item.amount = Math.round(item.qty_decimal * item.rate);
+  const mult = parseQtyToMultiplier(item.qty_unit, item.rate_type);
+  item.qty_decimal = mult != null ? mult : 0;
+  if (!item.amount_manual) {
+    item.amount = mult != null ? Math.round(mult * item.rate) : 0;
   }
 }
 
@@ -1047,16 +1253,12 @@ async function saveBill(container) {
       row.querySelector('.row-machine-input').classList.add('error');
       hasError = true;
     }
-    if (item.rate_type === 'hourly' && item.qty_decimal <= 0) {
-      row.querySelector('.row-hours').classList.add('error');
+    if (!String(item.qty_unit || '').trim()) {
+      row.querySelector('.row-qty')?.classList.add('error');
       hasError = true;
     }
-    if (item.rate_type !== 'hourly' && item.qty_decimal <= 0) {
-      row.querySelector('.row-days')?.classList.add('error');
-      hasError = true;
-    }
-    if (item.rate <= 0) {
-      row.querySelector('.row-rate').classList.add('error');
+    if (!(item.amount > 0)) {
+      row.querySelector('.row-amount')?.classList.add('error');
       hasError = true;
     }
   });
@@ -1113,6 +1315,9 @@ function showBillPreviewModal(container) {
 
         <div class="bpm-scroll-area">
           <div class="bpm-paper">
+
+            <!-- Company GSTIN — top-right, matches exported PDF -->
+            <div class="bpm-company-gstin">GSTIN: 27BISPN4599L1Z3</div>
 
             <!-- Header (cleaned logo only — matches exported PDF) -->
             <div class="bpm-company-header">
