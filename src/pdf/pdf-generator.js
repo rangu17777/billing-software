@@ -5,6 +5,37 @@ import { getCleanLogo } from '../shared/logo.js';
 // Re-export so existing importers (bill-creator) keep working unchanged.
 export { getCleanLogo };
 
+// Company GSTIN — printed on every bill by default (also shown on the dashboard).
+const COMPANY_GSTIN = '27BISPN4599L1Z3';
+
+const RED   = [211, 47, 47];
+const NAVY  = [26, 35, 126];
+const BLACK = [33, 33, 33];
+const WHITE = [255, 255, 255];
+const LGRAY = [245, 245, 245];
+
+const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+const fmt = (n) => parseFloat(n || 0).toLocaleString('en-IN');
+const fmtDate = (s) => {
+  if (!s) return '';
+  const p = s.split('-');
+  return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : s;
+};
+
+// Shared page geometry derived from the doc.
+function geometry(doc) {
+  const W = doc.internal.pageSize.getWidth();   // 210
+  const H = doc.internal.pageSize.getHeight();  // 297
+  const LM = 10, RM = 10;
+  const CX = W / 2;
+  const CONTENT_X = LM + 2.5;                // 12.5 — just right of the red strip
+  const CONTENT_R = W - RM;                  // 200  — right content edge
+  const CONTENT_W = CONTENT_R - CONTENT_X;   // 187.5
+  const SIDE_BOX_W = 54;                     // bill-info & footer right boxes share this
+  const SIDE_BOX_X = CONTENT_R - SIDE_BOX_W; // 146 — both right boxes line up
+  return { W, H, LM, RM, CX, CONTENT_X, CONTENT_R, CONTENT_W, SIDE_BOX_W, SIDE_BOX_X };
+}
+
 // Download entry point (used by dashboard + bills list).
 export async function generateBillPDF(bill, lineItems) {
   const doc = await buildBillPDFDoc(bill, lineItems);
@@ -18,58 +49,62 @@ export async function getBillPDFBlob(bill, lineItems) {
   return doc.output('blob');
 }
 
-// Builds the jsPDF document (layout only — no save/output).
+// Builds the jsPDF document, auto-shrinking the table so the whole invoice fits
+// on a single A4 page whenever possible (clean multipage fallback for huge bills).
 export async function buildBillPDFDoc(bill, lineItems) {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const logo = await getCleanLogo();          // cached after first load; cheap to reuse
 
-  const W  = doc.internal.pageSize.getWidth();   // 210
-  const H  = doc.internal.pageSize.getHeight();  // 297
-  const LM = 10;
-  const RM = 10;
-  const CX = W / 2;
+  // Height reserved below the table for grand-total bar + footer + words + signature.
+  const BOTTOM_BLOCK_H = 72;
+  const densities = [1, 0.92, 0.84, 0.76, 0.68, 0.6];
 
-  // Shared content grid — every box/table/bar aligns to these edges.
-  const CONTENT_X = LM + 2.5;          // 12.5 — just right of the red strip
-  const CONTENT_R = W - RM;            // 200  — right content edge
-  const CONTENT_W = CONTENT_R - CONTENT_X; // 187.5
-  const SIDE_BOX_W = 54;               // bill-info & footer right boxes share this
-  const SIDE_BOX_X = CONTENT_R - SIDE_BOX_W; // 146 — both right boxes line up
+  let doc, finalY;
+  for (let i = 0; i < densities.length; i++) {
+    doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const { H } = geometry(doc);
+    finalY = drawHeaderAndTable(doc, bill, lineItems, logo, densities[i]);
+    const fits = doc.getNumberOfPages() === 1 && (finalY + BOTTOM_BLOCK_H) <= (H - 8);
+    if (fits || i === densities.length - 1) break;   // fits one page, or smallest tried
+  }
 
-  const RED   = [211, 47, 47];
-  const NAVY  = [26, 35, 126];
-  const BLACK = [33, 33, 33];
-  const WHITE = [255, 255, 255];
-  const LGRAY = [245, 245, 245];
+  drawBottomBlock(doc, bill, finalY);
+  return doc;
+}
 
-  const fmt = (n) => parseFloat(n || 0).toLocaleString('en-IN');
-  const fmtDate = (s) => {
-    if (!s) return '';
-    const p = s.split('-');
-    return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : s;
-  };
+// Draws border, header (incl. company GSTIN), bill-info box, and the line-items
+// table at the given density. Returns the table's finalY.
+function drawHeaderAndTable(doc, bill, lineItems, logo, density) {
+  const g = geometry(doc);
+  const { W, H, LM, RM, CX, CONTENT_X, CONTENT_R, CONTENT_W, SIDE_BOX_W, SIDE_BOX_X } = g;
 
   // ── 1. OUTER BORDER ──────────────────────────────────────────────────────────
   doc.setDrawColor(...BLACK);
   doc.setLineWidth(0.4);
   doc.rect(LM, 8, W - LM - RM, H - 16);
 
-  // ── 2. LEFT RED ACCENT STRIP (Branded Premium) ───────────────────────────────
+  // ── 2. LEFT RED ACCENT STRIP ─────────────────────────────────────────────────
   doc.setFillColor(...RED);
   doc.rect(LM, 8, 2.5, H - 16, 'F');
 
-  // ── 3. HEADER — cleaned AAN logo lockup (no re-typed text) ────────────────────
+  // ── 3. HEADER — cleaned AAN logo lockup ──────────────────────────────────────
   let y = 12;
-  const logo = await getCleanLogo();
   const logoH = 26;
   let logoW = logoH * logo.aspect;
   const maxLogoW = W - LM - RM - 20;
   if (logoW > maxLogoW) logoW = maxLogoW;
   const logoX = CX - logoW / 2;
 
+  // Company GSTIN — top-right corner, beside the branding.
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(...NAVY);
+  doc.text('GSTIN:', CONTENT_R - 3, 13, { align: 'right' });
+  doc.text(COMPANY_GSTIN, CONTENT_R - 3, 17, { align: 'right' });
+
   doc.addImage(logo.dataUrl, 'JPEG', logoX, y, logoW, logoH);
   y += logoH + 4;
 
-  // Address + contact (these are NOT in the logo) — three centered lines
+  // Address + contact — three centered lines
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(...BLACK);
@@ -151,17 +186,21 @@ export async function buildBillPDFDoc(bill, lineItems) {
     fmt(item.amount)
   ]);
 
-  const subtotal    = parseFloat(bill.subtotal    || 0);
-  const sgstAmt     = parseFloat(bill.sgst        || 0);
-  const cgstAmt     = parseFloat(bill.cgst        || 0);
-  const grandTotal  = parseFloat(bill.grand_total || 0);
+  const subtotal   = parseFloat(bill.subtotal    || 0);
+  const sgstAmt    = parseFloat(bill.sgst        || 0);
+  const cgstAmt    = parseFloat(bill.cgst        || 0);
 
-  // Totals as footer rows of the same table: label spans Sr..Qty (right-aligned),
-  // rate falls under the Rate column, value under the Amount column.
+  // Totals as footer rows of the same table.
   const taxStartIdx = tableData.length;
   tableData.push([{ content: 'Subtotal', colSpan: 6, styles: { halign: 'right' } }, '',   fmt(subtotal)]);
   tableData.push([{ content: 'SGST',     colSpan: 6, styles: { halign: 'right' } }, '9%', fmt(sgstAmt)]);
   tableData.push([{ content: 'CGST',     colSpan: 6, styles: { halign: 'right' } }, '9%', fmt(cgstAmt)]);
+
+  // Density-scaled sizing so many rows fit one page.
+  const bodyFont = clamp(8.5 * density, 5,   8.5);
+  const padV     = clamp(2.5 * density, 0.8, 2.5);
+  const headFont = clamp(8   * density, 5.5, 8);
+  const headMinH = clamp(10  * density, 6,   10);
 
   doc.autoTable({
     startY: y,
@@ -171,13 +210,13 @@ export async function buildBillPDFDoc(bill, lineItems) {
     headStyles: {
       fillColor: RED,
       textColor: WHITE,
-      fontSize: 8,
+      fontSize: headFont,
       fontStyle: 'bold',
       halign: 'center',
       valign: 'middle',
       lineColor: WHITE,
       lineWidth: 0.3,
-      minCellHeight: 10
+      minCellHeight: headMinH
     },
     // Column widths sum to CONTENT_W (187.5) so the table fills the full grid.
     columnStyles: {
@@ -191,8 +230,8 @@ export async function buildBillPDFDoc(bill, lineItems) {
       7: { cellWidth: 26.5, halign: 'right'  }   // Amount
     },
     styles: {
-      fontSize: 8.5,
-      cellPadding: { top: 2.5, bottom: 2.5, left: 2.5, right: 2.5 },
+      fontSize: bodyFont,
+      cellPadding: { top: padV, bottom: padV, left: 2.5, right: 2.5 },
       lineColor: [180, 180, 180],
       lineWidth: 0.2,
       textColor: BLACK,
@@ -210,7 +249,16 @@ export async function buildBillPDFDoc(bill, lineItems) {
     }
   });
 
-  const tableEndY = doc.lastAutoTable.finalY;
+  return doc.lastAutoTable.finalY;
+}
+
+// Draws the grand-total bar, footer boxes, Rs.-in-words band, and signature,
+// anchored at the table's finalY.
+function drawBottomBlock(doc, bill, tableEndY) {
+  const g = geometry(doc);
+  const { RM, CONTENT_X, CONTENT_R, CONTENT_W, SIDE_BOX_W, SIDE_BOX_X } = g;
+
+  const grandTotal = parseFloat(bill.grand_total || 0);
 
   // ── 6. GRAND TOTAL BAR (red, full width) ──────────────────────────────────────
   const gtH = 9;
@@ -229,9 +277,9 @@ export async function buildBillPDFDoc(bill, lineItems) {
   const footBoxH = 24;
   const footGap  = 4;
   const rightFBW = SIDE_BOX_W;
-  const rightFBX = SIDE_BOX_X;                       // aligns with bill-info box
+  const rightFBX = SIDE_BOX_X;
   const leftFBW  = rightFBX - footGap - CONTENT_X;
-  const fLx      = CONTENT_X + 3;                    // left padding inside box
+  const fLx      = CONTENT_X + 3;
 
   doc.setDrawColor(...BLACK);
   doc.setLineWidth(0.3);
@@ -283,10 +331,10 @@ export async function buildBillPDFDoc(bill, lineItems) {
 
   // ── 8. Rs. IN WORDS — highlighted band ───────────────────────────────────────
   const wordsBandH = 9;
-  doc.setFillColor(255, 248, 225);          // cream highlight fill
+  doc.setFillColor(255, 248, 225);
   doc.setDrawColor(...RED);
   doc.setLineWidth(0.5);
-  doc.rect(CONTENT_X, footY, CONTENT_W, wordsBandH, 'FD');  // fill + red border
+  doc.rect(CONTENT_X, footY, CONTENT_W, wordsBandH, 'FD');
 
   const wordsY = footY + wordsBandH / 2 + 1.5;
   const wordsLabel = 'Rs. In Words :  ';
@@ -323,6 +371,4 @@ export async function buildBillPDFDoc(bill, lineItems) {
   doc.setFontSize(7.5);
   doc.setTextColor(100, 100, 100);
   doc.text('Authorised Signatory', CONTENT_R - 3, footY, { align: 'right' });
-
-  return doc;
 }

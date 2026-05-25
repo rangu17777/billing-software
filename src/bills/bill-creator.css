@@ -186,6 +186,139 @@
 .gst-amount-input::-webkit-outer-spin-button,
 .gst-amount-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
+/* ── QTY / UNIT CELL (freeform + quick-fill chips) ──────────────────────────── */
+.qty-cell {
+  position: relative;
+  min-width: 200px;
+}
+
+.row-qty {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: var(--text-sm);
+}
+
+.qty-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.qty-chip {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  color: var(--color-black);
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1.5;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--duration-base), border-color var(--duration-base), color var(--duration-base);
+}
+.qty-chip:hover {
+  background: var(--color-gold-soft, #e7e2a6);
+  border-color: var(--color-gold, #897e01);
+}
+
+.qty-chip-hrs,
+.qty-chip-add {
+  border-style: dashed;
+  color: var(--color-primary-red, #d32f2f);
+  border-color: var(--color-primary-red, #d32f2f);
+  background: transparent;
+}
+.qty-chip-hrs:hover,
+.qty-chip-add:hover {
+  background: rgba(211,47,47,0.08);
+  color: var(--color-primary-red, #d32f2f);
+}
+
+.qty-auto-hint {
+  margin-top: 3px;
+  min-height: 0.85rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--color-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Hours / add-preset popover anchored under the qty cell */
+.qty-popover {
+  position: absolute;
+  z-index: 40;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  min-width: 210px;
+  padding: 10px;
+  background: var(--color-surface-card, #fff);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  box-shadow: 0 8px 26px rgba(0,0,0,0.18);
+}
+.qty-popover-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.qty-popover-row input[type="number"] { width: 64px; }
+.qty-popover-row input { padding: 6px 8px; font-size: var(--text-sm); }
+.qty-popover-row .qpop-label { flex: 1; }
+.qty-popover-row span { font-size: 0.8rem; font-weight: 700; color: var(--color-muted); }
+.qty-popover-actions {
+  display: flex;
+  gap: 8px;
+}
+.qty-popover-actions .btn { flex: 1; padding: 6px 10px; font-size: var(--text-xs); }
+
+/* ── EDITABLE AMOUNT CELL ───────────────────────────────────────────────────── */
+.amount-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 110px;
+}
+.row-amount {
+  flex: 1;
+  width: 100%;
+  padding: 6px 8px;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-align: right;
+  -moz-appearance: textfield;
+}
+.row-amount::-webkit-outer-spin-button,
+.row-amount::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+.amount-reset {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  color: var(--color-muted);
+  border-radius: 6px;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  transition: color var(--duration-base), border-color var(--duration-base);
+}
+.amount-reset:hover { color: var(--color-primary-red, #d32f2f); border-color: var(--color-primary-red, #d32f2f); }
+.amount-reset.hidden { display: none; }
+
+/* Larger touch targets on phones */
+@media (max-width: 600px) {
+  .qty-chip { padding: 6px 11px; }
+  .row-qty, .row-amount { padding: 9px 8px; }
+  .amount-reset { width: 34px; height: 34px; }
+}
+
 /* ── BILL PREVIEW MODAL ──────────────────────────────────────────────────────── */
 .bpm-backdrop {
   position: fixed;
@@ -268,6 +401,17 @@
   left: 0; top: 0; bottom: 0;
   width: 6px;
   background: #d32f2f;
+}
+
+/* Company GSTIN — top-right corner of the paper (matches PDF) */
+.bpm-company-gstin {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #1a237e;
+  text-align: right;
 }
 
 /* Company header */
