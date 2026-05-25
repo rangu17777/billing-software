@@ -14,6 +14,7 @@ const BLACK = [33, 33, 33];
 const WHITE = [255, 255, 255];
 const LGRAY = [245, 245, 245];
 
+const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 const fmt = (n) => parseFloat(n || 0).toLocaleString('en-IN');
 const fmtDate = (s) => {
   if (!s) return '';
@@ -50,50 +51,48 @@ export async function getBillPDFBlob(bill, lineItems) {
 
 // Builds the jsPDF document, auto-shrinking the table so the whole invoice fits
 // on a single A4 page whenever possible (clean multipage fallback for huge bills).
-// y where the line-items table starts (just below the repeated header block).
-const HEADER_BOTTOM = 81;
-
 export async function buildBillPDFDoc(bill, lineItems) {
   const logo = await getCleanLogo();          // cached after first load; cheap to reuse
 
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const { H } = geometry(doc);
+  const probe = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const { H } = geometry(probe);
   const BOTTOM_BLOCK_H = 75;                   // grand-total bar + footer + words + signature
   const LIMIT          = (H - 8) - BOTTOM_BLOCK_H; // table must end here for the footer to fit
+  // Shrink down to ~0.6 so ~18-20 rows still fit one page; below that → multi-page.
+  const densities = [1, 0.92, 0.84, 0.78, 0.72, 0.66, 0.6];
 
-  // Readable, fixed-size table (~20 rows/page) that flows across pages. The full
-  // header and the column row repeat on every page so a long bill reads as one
-  // continuous bill rather than looking broken.
-  let finalY = drawTable(doc, bill, lineItems, logo);
+  const newDoc = () => new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
-  // Place the totals/footer/signature after the table; if they would run off the
-  // bottom, start a fresh, identically-formatted page for them.
+  let doc, finalY, fitsOnePage = false;
+  for (const d of densities) {
+    doc = newDoc();
+    finalY = drawHeaderAndTable(doc, bill, lineItems, logo, d);
+    if (doc.getNumberOfPages() === 1 && finalY <= LIMIT) { fitsOnePage = true; break; }
+  }
+
+  // Too many rows to fit one readable page → render at full size and let the table
+  // flow across pages naturally (header row repeats), then place the footer cleanly.
+  if (!fitsOnePage) {
+    doc = newDoc();
+    finalY = drawHeaderAndTable(doc, bill, lineItems, logo, 1);
+  }
+
+  // Never let the bottom block run off the page — give it its own page if needed.
   if (finalY > LIMIT) {
     doc.addPage();
-    drawBillHeader(doc, bill, logo);
-    finalY = HEADER_BOTTOM;
+    finalY = 14;
   }
   drawBottomBlock(doc, bill, finalY);
 
-  // Outer border + red strip + "Page x of y" on every page.
+  // Outer border + red strip on every page (single- or multi-page).
   const pages = doc.getNumberOfPages();
-  for (let p = 1; p <= pages; p++) {
-    doc.setPage(p);
-    drawPageFrame(doc);
-    if (pages > 1) drawPageNumber(doc, p, pages);
-  }
+  for (let p = 1; p <= pages; p++) { doc.setPage(p); drawPageFrame(doc); }
 
   return doc;
 }
 
-function drawPageNumber(doc, p, total) {
-  const { CONTENT_R } = geometry(doc);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
-  doc.setTextColor(120, 120, 120);
-  doc.text(`Page ${p} of ${total}`, CONTENT_R - 3, 21, { align: 'right' });
-}
-
+// Draws border, header (incl. company GSTIN), bill-info box, and the line-items
+// table at the given density. Returns the table's finalY.
 // Outer border + left red accent strip — drawn on every page for a consistent
 // look across single- and multi-page bills.
 function drawPageFrame(doc) {
@@ -105,11 +104,9 @@ function drawPageFrame(doc) {
   doc.rect(LM, 8, 2.5, H - 16, 'F');
 }
 
-// Company header + bill-info box. Drawn on every page so each sheet of a
-// multi-page bill carries the same branding and reads as one document.
-function drawBillHeader(doc, bill, logo) {
+function drawHeaderAndTable(doc, bill, lineItems, logo, density) {
   const g = geometry(doc);
-  const { W, LM, RM, CX, CONTENT_X, CONTENT_R, CONTENT_W, SIDE_BOX_W, SIDE_BOX_X } = g;
+  const { W, H, LM, RM, CX, CONTENT_X, CONTENT_R, CONTENT_W, SIDE_BOX_W, SIDE_BOX_X } = g;
 
   // ── 3. HEADER — cleaned AAN logo lockup ──────────────────────────────────────
   let y = 12;
@@ -197,12 +194,7 @@ function drawBillHeader(doc, bill, logo) {
   doc.setDrawColor(...BLACK);
   doc.setLineWidth(0.3);
   doc.line(CONTENT_X, y, CONTENT_R, y);
-}
-
-// Line-items table — fixed readable size, flowing across pages with the header
-// and column row repeated on each page. Returns the table's finalY (last page).
-function drawTable(doc, bill, lineItems, logo) {
-  const { RM, CONTENT_X } = geometry(doc);
+  y += 1;
 
   // ── 5. LINE ITEMS TABLE ───────────────────────────────────────────────────────
   const tableData = lineItems.map(item => [
@@ -226,22 +218,27 @@ function drawTable(doc, bill, lineItems, logo) {
   tableData.push([{ content: 'SGST',     colSpan: 6, styles: { halign: 'right' } }, '9%', fmt(sgstAmt)]);
   tableData.push([{ content: 'CGST',     colSpan: 6, styles: { halign: 'right' } }, '9%', fmt(cgstAmt)]);
 
+  // Density-scaled sizing so many rows fit one page.
+  const bodyFont = clamp(8.5 * density, 5,   8.5);
+  const padV     = clamp(2.5 * density, 0.8, 2.5);
+  const headFont = clamp(8   * density, 5.5, 8);
+  const headMinH = clamp(10  * density, 6,   10);
+
   doc.autoTable({
-    startY: HEADER_BOTTOM,
+    startY: y,
     head: [['Sr.\nNo.', 'Date', 'Challan\nNo.', 'Description', 'Vehicle\nNo.', 'Qty./Unit', 'Rate', 'Amount']],
     body: tableData,
     theme: 'grid',
-    showHead: 'everyPage',
     headStyles: {
       fillColor: RED,
       textColor: WHITE,
-      fontSize: 8,
+      fontSize: headFont,
       fontStyle: 'bold',
       halign: 'center',
       valign: 'middle',
       lineColor: WHITE,
       lineWidth: 0.3,
-      minCellHeight: 10
+      minCellHeight: headMinH
     },
     // Column widths sum to CONTENT_W (187.5) so the table fills the full grid.
     columnStyles: {
@@ -255,8 +252,8 @@ function drawTable(doc, bill, lineItems, logo) {
       7: { cellWidth: 26.5, halign: 'right'  }   // Amount
     },
     styles: {
-      fontSize: 8.5,
-      cellPadding: { top: 2, bottom: 2, left: 2.5, right: 2.5 },
+      fontSize: bodyFont,
+      cellPadding: { top: padV, bottom: padV, left: 2.5, right: 2.5 },
       lineColor: [180, 180, 180],
       lineWidth: 0.2,
       textColor: BLACK,
@@ -264,18 +261,14 @@ function drawTable(doc, bill, lineItems, logo) {
       overflow: 'linebreak'
     },
     alternateRowStyles: { fillColor: LGRAY },
-    // Reserve the header band at the top of EVERY page, plus a bottom margin so
-    // rows never crowd the page edge. ~20 rows fit per page at this size.
-    margin: { top: HEADER_BOTTOM, bottom: 12, left: CONTENT_X, right: RM },
+    margin: { left: CONTENT_X, right: RM },
     didParseCell: (data) => {
       if (data.section === 'body' && data.row.index >= taxStartIdx) {
         data.cell.styles.fillColor = [255, 248, 225];
         data.cell.styles.fontStyle = 'bold';
         data.cell.styles.textColor = NAVY;
       }
-    },
-    // Repeat the company header on every page the table touches.
-    didDrawPage: () => drawBillHeader(doc, bill, logo)
+    }
   });
 
   return doc.lastAutoTable.finalY;
