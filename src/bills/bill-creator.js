@@ -551,8 +551,15 @@ function attachFormEvents(container) {
   // ── ADD ROW ──
   container.querySelector('#add-row-btn').addEventListener('click', () => {
     const last = billData.lineItems[billData.lineItems.length - 1];
-    billData.lineItems.push(newBlankRow(billData.lineItems.length + 1, last?.date || ''));
+    const newIdx = billData.lineItems.length;
+    billData.lineItems.push(newBlankRow(newIdx + 1, last?.date || ''));
     refreshLineItems(container);
+    // Fade-in entrance animation on the freshly added row
+    const newRow = container.querySelector(`.line-item-row[data-index="${newIdx}"]`);
+    if (newRow) {
+      newRow.classList.add('row-entering');
+      newRow.addEventListener('animationend', () => newRow.classList.remove('row-entering'), { once: true });
+    }
   });
 
   // ── CANCEL & CLEAR ──
@@ -812,14 +819,24 @@ function attachLineItemsEvents(container) {
     });
   });
 
-  // Remove row
+  // Remove row — fade/collapse out first, then splice and re-render
   tbody.querySelectorAll('.remove-row-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const idx = parseInt(btn.getAttribute('data-index'), 10);
-      billData.lineItems.splice(idx, 1);
-      billData.lineItems.forEach((it, i) => { it.sr_no = i + 1; });
-      recalculateTotals();
-      refreshLineItems(container);
+      const row = tbody.querySelector(`.line-item-row[data-index="${idx}"]`);
+      const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const finalize = () => {
+        billData.lineItems.splice(idx, 1);
+        billData.lineItems.forEach((it, i) => { it.sr_no = i + 1; });
+        recalculateTotals();
+        refreshLineItems(container);
+      };
+      if (!row || reducedMotion) { finalize(); return; }
+      row.classList.add('row-exiting');
+      let done = false;
+      const onEnd = () => { if (done) return; done = true; finalize(); };
+      row.addEventListener('animationend', onEnd, { once: true });
+      setTimeout(onEnd, 260); // safety net if animationend doesn't fire
     });
   });
 }

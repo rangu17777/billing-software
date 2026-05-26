@@ -100,9 +100,29 @@ function attachScrollReveal(container) {
   targets.forEach(el => observer.observe(el));
 }
 
+// Toggle a `.scrolled` class on the sticky top bar once the main canvas has
+// scrolled past ~10px — the CSS in global.css adds a soft drop shadow.
+function attachStickyHeaderShadow(container) {
+  const topbar = container.querySelector('.topbar');
+  const scroller = container.querySelector('.main-canvas');
+  if (!topbar || !scroller) return;
+
+  let ticking = false;
+  const sync = () => {
+    ticking = false;
+    topbar.classList.toggle('scrolled', scroller.scrollTop > 10);
+  };
+  scroller.addEventListener('scroll', () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(sync);
+  }, { passive: true });
+  sync(); // initial state
+}
+
 export function attachShellEvents(container) {
   attachScrollReveal(container);
-
+  attachStickyHeaderShadow(container);
 
   // Brand logo (top bar) — auto-trimmed; falls back to text if it can't load.
   const brandImg = container.querySelector('#brand-logo');

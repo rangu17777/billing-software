@@ -409,7 +409,11 @@
   box-shadow: 0 12px 30px rgba(184,134,11,0.45);
 }
 .btn-login:hover:not(:disabled)::before { bottom: -18%; }
-.btn-login:active:not(:disabled) { transform: translateY(0); }
+.btn-login:active:not(:disabled) {
+  transform: translateY(1px) scale(0.99);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.18), 0 4px 12px rgba(184,134,11,0.25);
+  transition: transform 80ms var(--ease-standard, cubic-bezier(0.4,0,0.2,1));
+}
 .btn-login:disabled { opacity: 0.65; cursor: not-allowed; }
 
 /* ── FOOTER ────────────────────────────────────────────────────── */
