@@ -186,6 +186,25 @@
 .gst-amount-input::-webkit-outer-spin-button,
 .gst-amount-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
+/* Editable SGST/CGST rate input (the small "%" field) */
+.gst-rate-input {
+  width: 42px;
+  padding: 2px 5px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-align: right;
+  border: 1.5px solid #d32f2f;
+  border-radius: 5px;
+  color: #d32f2f;
+  background: var(--color-surface-card);
+  margin: 0 2px 0 4px;
+  outline: none;
+  -moz-appearance: textfield;
+}
+.gst-rate-input::-webkit-outer-spin-button,
+.gst-rate-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.gst-rate-input:focus { box-shadow: 0 0 0 2px rgba(211,47,47,0.18); }
+
 /* ── QTY / UNIT CELL (freeform + quick-fill chips) ──────────────────────────── */
 .qty-cell {
   position: relative;
@@ -408,15 +427,20 @@
   background: #d32f2f;
 }
 
-/* Company GSTIN — top-right corner of the paper (matches PDF) */
-.bpm-company-gstin {
+/* Company GSTIN — rides on the Mob row, right-aligned at the content edge,
+   matching the PDF where it shares the line with the centered mobile numbers. */
+.bpm-mob-row {
+  position: relative;
+}
+.bpm-mob-gstin {
   position: absolute;
-  top: 14px;
-  right: 16px;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
   font-size: 0.7rem;
   font-weight: 700;
   color: #1a237e;
-  text-align: right;
+  white-space: nowrap;
 }
 
 /* Company header */

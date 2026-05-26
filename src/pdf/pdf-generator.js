@@ -116,23 +116,23 @@ function drawHeaderAndTable(doc, bill, lineItems, logo, density) {
   if (logoW > maxLogoW) logoW = maxLogoW;
   const logoX = CX - logoW / 2;
 
-  // Company GSTIN — top-right corner, beside the branding.
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(...NAVY);
-  doc.text('GSTIN:', CONTENT_R - 3, 13, { align: 'right' });
-  doc.text(COMPANY_GSTIN, CONTENT_R - 3, 17, { align: 'right' });
-
   doc.addImage(logo.dataUrl, 'JPEG', logoX, y, logoW, logoH);
   y += logoH + 4;
 
-  // Address + contact — three centered lines
+  // Address + contact — three centered lines. The company GSTIN rides on the
+  // Mob row, right-aligned at the content edge (the centered Mob text is short
+  // enough to leave clear gap).
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(...BLACK);
   doc.text('Add.: A/p Ambadwet, Tal. Mulshi, Dist - Pune.', CX, y, { align: 'center' });
   y += 4;
   doc.text('Mob.: 7875396396 / 9921353533 / 9822111882', CX, y, { align: 'center' });
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...NAVY);
+  doc.text(`GSTIN: ${COMPANY_GSTIN}`, CONTENT_R - 3, y, { align: 'right' });
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...BLACK);
   y += 4;
   doc.text('Email: aanagre.machinery@gmail.com', CX, y, { align: 'center' });
   y += 4;
@@ -211,12 +211,17 @@ function drawHeaderAndTable(doc, bill, lineItems, logo, density) {
   const subtotal   = parseFloat(bill.subtotal    || 0);
   const sgstAmt    = parseFloat(bill.sgst        || 0);
   const cgstAmt    = parseFloat(bill.cgst        || 0);
+  // Derive rates from amounts so the PDF reflects whatever rate the admin
+  // chose in the summary card (no DB column needed). Rounding to 2 dp
+  // collapses 9 / 12 / 18 cleanly; tiny bills may read 9.09% etc.
+  const sgstRate = subtotal > 0 ? +(sgstAmt * 100 / subtotal).toFixed(2) : 9;
+  const cgstRate = subtotal > 0 ? +(cgstAmt * 100 / subtotal).toFixed(2) : 9;
 
   // Totals as footer rows of the same table.
   const taxStartIdx = tableData.length;
-  tableData.push([{ content: 'Subtotal', colSpan: 6, styles: { halign: 'right' } }, '',   fmt(subtotal)]);
-  tableData.push([{ content: 'SGST',     colSpan: 6, styles: { halign: 'right' } }, '9%', fmt(sgstAmt)]);
-  tableData.push([{ content: 'CGST',     colSpan: 6, styles: { halign: 'right' } }, '9%', fmt(cgstAmt)]);
+  tableData.push([{ content: 'Subtotal', colSpan: 6, styles: { halign: 'right' } }, '',              fmt(subtotal)]);
+  tableData.push([{ content: 'SGST',     colSpan: 6, styles: { halign: 'right' } }, `${sgstRate}%`,  fmt(sgstAmt)]);
+  tableData.push([{ content: 'CGST',     colSpan: 6, styles: { halign: 'right' } }, `${cgstRate}%`,  fmt(cgstAmt)]);
 
   // Density-scaled sizing so many rows fit one page.
   const bodyFont = clamp(8.5 * density, 5,   8.5);
