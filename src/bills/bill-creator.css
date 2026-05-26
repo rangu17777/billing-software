@@ -428,9 +428,14 @@
 }
 
 /* Company GSTIN — rides on the Mob row, right-aligned at the content edge,
-   matching the PDF where it shares the line with the centered mobile numbers. */
+   matching the PDF where it shares the line with the centered mobile numbers.
+   Stretch the row to full paper width (parent flex centers children otherwise),
+   keep the Mob text centered, and pin the GSTIN to the actual right edge. */
 .bpm-mob-row {
   position: relative;
+  align-self: stretch;
+  width: 100%;
+  text-align: center;
 }
 .bpm-mob-gstin {
   position: absolute;
@@ -441,6 +446,17 @@
   font-weight: 700;
   color: #1a237e;
   white-space: nowrap;
+}
+
+/* Narrow screens: the Mob text + GSTIN would otherwise overlap on phones;
+   drop the GSTIN under the Mob line, centered, on a second row. */
+@media (max-width: 640px) {
+  .bpm-mob-gstin {
+    position: static;
+    transform: none;
+    display: block;
+    margin-top: 2px;
+  }
 }
 
 /* Company header */
