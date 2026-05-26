@@ -203,12 +203,14 @@ function renderForm(container, showDraftPrompt = false, draft = null) {
                 <span class="font-semibold" id="summary-subtotal">₹${billData.subtotal.toLocaleString('en-IN')}</span>
               </div>
               <div class="flex justify-between text-sm mb-1 gst-rate-row">
-                <span class="gst-rate-label">SGST <span class="gst-rate-fixed">${billData.sgstRate}%</span></span>
+                <span class="gst-rate-label">SGST&nbsp;<input type="number" id="summary-sgst-rate" class="gst-rate-input"
+                  value="${billData.sgstRate}" min="0" max="50" step="0.1" />%</span>
                 <span class="gst-amount-wrap">₹<input type="number" id="summary-sgst" class="gst-amount-input"
                   value="${billData.sgst}" min="0" step="1" /></span>
               </div>
               <div class="flex justify-between text-sm gst-rate-row">
-                <span class="gst-rate-label">CGST <span class="gst-rate-fixed">${billData.cgstRate}%</span></span>
+                <span class="gst-rate-label">CGST&nbsp;<input type="number" id="summary-cgst-rate" class="gst-rate-input"
+                  value="${billData.cgstRate}" min="0" max="50" step="0.1" />%</span>
                 <span class="gst-amount-wrap">₹<input type="number" id="summary-cgst" class="gst-amount-input"
                   value="${billData.cgst}" min="0" step="1" /></span>
               </div>
@@ -385,8 +387,8 @@ function renderLineItemRows() {
         <td>
           <input type="text" class="row-vehicle-no" data-index="${idx}"
             value="${escapeHtml(item.vehicle_no)}"
-            style="padding:6px 8px;font-size:var(--text-sm);background:var(--color-surface-2);color:var(--color-black);text-transform:uppercase;width:100%"
-            readonly placeholder="Auto" />
+            style="padding:6px 8px;font-size:var(--text-sm);color:var(--color-black);text-transform:uppercase;width:100%"
+            placeholder="Vehicle No." />
         </td>
         <td>${qtyHtml}</td>
         <td>
@@ -527,7 +529,22 @@ function attachFormEvents(container) {
     billData.date = e.target.value;
   });
 
-  // ── GST AMOUNTS (rate fixed at 9%, rupee value editable) ──
+  // ── GST RATES (editable %) — change clears the manual-amount override so
+  //    the amount auto-recomputes from the new rate ──
+  container.querySelector('#summary-sgst-rate').addEventListener('input', (e) => {
+    billData.sgstRate    = parseFloat(e.target.value) || 0;
+    billData.sgstManual  = false;
+    recalculateTotals();
+    updateTotalDisplays(container);
+  });
+  container.querySelector('#summary-cgst-rate').addEventListener('input', (e) => {
+    billData.cgstRate    = parseFloat(e.target.value) || 0;
+    billData.cgstManual  = false;
+    recalculateTotals();
+    updateTotalDisplays(container);
+  });
+
+  // ── GST AMOUNTS (rupee value editable; marks the row as a manual override) ──
   container.querySelector('#summary-sgst').addEventListener('input', (e) => {
     billData.sgst = parseFloat(e.target.value) || 0;
     billData.sgstManual = true;
@@ -819,6 +836,15 @@ function attachLineItemsEvents(container) {
     });
   });
 
+  // Vehicle No. — auto-filled from machine, editable per row
+  tbody.querySelectorAll('.row-vehicle-no').forEach(input => {
+    input.addEventListener('input', (e) => {
+      const idx = parseInt(e.target.getAttribute('data-index'), 10);
+      billData.lineItems[idx].vehicle_no = e.target.value.toUpperCase();
+    });
+    input.addEventListener('focus', (e) => e.target.select());
+  });
+
   // Remove row — fade/collapse out first, then splice and re-render
   tbody.querySelectorAll('.remove-row-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1068,6 +1094,10 @@ function updateTotalDisplays(container) {
   const cgstEl = container.querySelector('#summary-cgst');
   if (sgstEl && sgstEl !== document.activeElement) sgstEl.value = billData.sgst;
   if (cgstEl && cgstEl !== document.activeElement) cgstEl.value = billData.cgst;
+  const sgstRateEl = container.querySelector('#summary-sgst-rate');
+  const cgstRateEl = container.querySelector('#summary-cgst-rate');
+  if (sgstRateEl && sgstRateEl !== document.activeElement) sgstRateEl.value = billData.sgstRate;
+  if (cgstRateEl && cgstRateEl !== document.activeElement) cgstRateEl.value = billData.cgstRate;
   container.querySelector('#summary-grand-total').textContent = `₹${billData.grand_total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
   container.querySelector('#bill-balance').textContent        = `₹${billData.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
   container.querySelector('#bill-amount-words').textContent   = billData.amount_in_words;
@@ -1333,14 +1363,14 @@ function showBillPreviewModal(container) {
         <div class="bpm-scroll-area">
           <div class="bpm-paper">
 
-            <!-- Company GSTIN — top-right, matches exported PDF -->
-            <div class="bpm-company-gstin">GSTIN: 27BISPN4599L1Z3</div>
-
             <!-- Header (cleaned logo only — matches exported PDF) -->
             <div class="bpm-company-header">
               <img id="bpm-logo" alt="AA. NAGARE Infra Machinery" class="bpm-company-logo" />
               <div class="bpm-company-addr">Add.: A/p Ambadwet, Tal. Mulshi, Dist - Pune.</div>
-              <div class="bpm-company-addr">Mob.: 7875396396 / 9921353533 / 9822111882</div>
+              <div class="bpm-company-addr bpm-mob-row">
+                Mob.: 7875396396 / 9921353533 / 9822111882
+                <span class="bpm-mob-gstin">GSTIN: 27BISPN4599L1Z3</span>
+              </div>
               <div class="bpm-company-addr">Email: aanagre.machinery@gmail.com</div>
             </div>
 
