@@ -296,6 +296,9 @@ function confirmDeleteBill(bill, container) {
     `Delete Bill #${String(bill.bill_no).padStart(4, '0')}?`,
     `Permanently delete Bill #${String(bill.bill_no).padStart(4, '0')} for ${bill.client_name}? All line items will also be deleted. This cannot be undone.`,
     async () => {
+      // Visually fade the row out while the network delete runs in parallel.
+      const row = container.querySelector(`tr[data-id="${bill.id}"]`);
+      if (row) row.classList.add('row-exiting');
       try {
         const { error } = await supabase
           .from('bills')
@@ -306,6 +309,7 @@ function confirmDeleteBill(bill, container) {
         await fetchBills();
         renderPage(container);
       } catch (error) {
+        if (row) row.classList.remove('row-exiting');
         handleError(error);
       }
     }

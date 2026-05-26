@@ -54,37 +54,59 @@ export async function getBillPDFBlob(bill, lineItems) {
 export async function buildBillPDFDoc(bill, lineItems) {
   const logo = await getCleanLogo();          // cached after first load; cheap to reuse
 
-  // Height reserved below the table for grand-total bar + footer + words + signature.
-  const BOTTOM_BLOCK_H = 72;
-  const densities = [1, 0.92, 0.84, 0.76, 0.68, 0.6];
+  const probe = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const { H } = geometry(probe);
+  const BOTTOM_BLOCK_H = 75;                   // grand-total bar + footer + words + signature
+  const LIMIT          = (H - 8) - BOTTOM_BLOCK_H; // table must end here for the footer to fit
+  // Shrink down to ~0.6 so ~18-20 rows still fit one page; below that → multi-page.
+  const densities = [1, 0.92, 0.84, 0.78, 0.72, 0.66, 0.6];
 
-  let doc, finalY;
-  for (let i = 0; i < densities.length; i++) {
-    doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const { H } = geometry(doc);
-    finalY = drawHeaderAndTable(doc, bill, lineItems, logo, densities[i]);
-    const fits = doc.getNumberOfPages() === 1 && (finalY + BOTTOM_BLOCK_H) <= (H - 8);
-    if (fits || i === densities.length - 1) break;   // fits one page, or smallest tried
+  const newDoc = () => new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  let doc, finalY, fitsOnePage = false;
+  for (const d of densities) {
+    doc = newDoc();
+    finalY = drawHeaderAndTable(doc, bill, lineItems, logo, d);
+    if (doc.getNumberOfPages() === 1 && finalY <= LIMIT) { fitsOnePage = true; break; }
   }
 
+  // Too many rows to fit one readable page → render at full size and let the table
+  // flow across pages naturally (header row repeats), then place the footer cleanly.
+  if (!fitsOnePage) {
+    doc = newDoc();
+    finalY = drawHeaderAndTable(doc, bill, lineItems, logo, 1);
+  }
+
+  // Never let the bottom block run off the page — give it its own page if needed.
+  if (finalY > LIMIT) {
+    doc.addPage();
+    finalY = 14;
+  }
   drawBottomBlock(doc, bill, finalY);
+
+  // Outer border + red strip on every page (single- or multi-page).
+  const pages = doc.getNumberOfPages();
+  for (let p = 1; p <= pages; p++) { doc.setPage(p); drawPageFrame(doc); }
+
   return doc;
 }
 
 // Draws border, header (incl. company GSTIN), bill-info box, and the line-items
 // table at the given density. Returns the table's finalY.
-function drawHeaderAndTable(doc, bill, lineItems, logo, density) {
-  const g = geometry(doc);
-  const { W, H, LM, RM, CX, CONTENT_X, CONTENT_R, CONTENT_W, SIDE_BOX_W, SIDE_BOX_X } = g;
-
-  // ── 1. OUTER BORDER ──────────────────────────────────────────────────────────
+// Outer border + left red accent strip — drawn on every page for a consistent
+// look across single- and multi-page bills.
+function drawPageFrame(doc) {
+  const { W, H, LM, RM } = geometry(doc);
   doc.setDrawColor(...BLACK);
   doc.setLineWidth(0.4);
   doc.rect(LM, 8, W - LM - RM, H - 16);
-
-  // ── 2. LEFT RED ACCENT STRIP ─────────────────────────────────────────────────
   doc.setFillColor(...RED);
   doc.rect(LM, 8, 2.5, H - 16, 'F');
+}
+
+function drawHeaderAndTable(doc, bill, lineItems, logo, density) {
+  const g = geometry(doc);
+  const { W, H, LM, RM, CX, CONTENT_X, CONTENT_R, CONTENT_W, SIDE_BOX_W, SIDE_BOX_X } = g;
 
   // ── 3. HEADER — cleaned AAN logo lockup ──────────────────────────────────────
   let y = 12;

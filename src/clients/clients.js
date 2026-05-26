@@ -444,6 +444,8 @@ function confirmDeleteClient(client, container) {
     `Delete Client?`,
     `Permanently delete the profile for "${client.name}"? Historical bills will preserve the client's info, but they will no longer appear in new billing dropdowns.`,
     async () => {
+      const row = container.querySelector(`tr[data-id="${client.id}"]`);
+      if (row) row.classList.add('row-exiting');
       try {
         const { error } = await supabase
           .from('clients')
@@ -454,6 +456,7 @@ function confirmDeleteClient(client, container) {
         await fetchClients();
         renderPage(container);
       } catch (error) {
+        if (row) row.classList.remove('row-exiting');
         handleError(error);
       }
     }
@@ -592,6 +595,8 @@ function confirmDeleteMachine(machine, container) {
     `Delete Machine?`,
     `Permanently delete "${machine.description} (${machine.vehicle_no})"? Historical bills will preserve the machine's details, but it will no longer appear in new bill line items.`,
     async () => {
+      const row = container.querySelector(`tr[data-id="${machine.id}"]`);
+      if (row) row.classList.add('row-exiting');
       try {
         const { error } = await supabase
           .from('machines')
@@ -602,6 +607,7 @@ function confirmDeleteMachine(machine, container) {
         await fetchMachines();
         renderPage(container);
       } catch (error) {
+        if (row) row.classList.remove('row-exiting');
         handleError(error);
       }
     }

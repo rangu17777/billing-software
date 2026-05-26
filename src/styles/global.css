@@ -104,6 +104,7 @@
   --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
   --ease-accelerate: cubic-bezier(0.4, 0, 1, 1);
+  --ease-spring:    cubic-bezier(0.34, 1.56, 0.64, 1);  /* overshoot — modals/popovers */
   --duration-fast:   150ms;
   --duration-base:   250ms;
   --duration-slow:   400ms;
@@ -564,7 +565,7 @@ h5 { font-size: var(--text-lg);  font-weight: 600; line-height: 1.4; }
   padding: var(--space-4);
   width: 100%;
   max-width: 520px;
-  animation: modalSlideIn 300ms var(--ease-decelerate);
+  animation: modalSlideIn 320ms var(--ease-spring);
 }
 
 /* ─── 15. APP SHELL — TOP COMMAND BAR (Nagare Luminous) ─── */
@@ -1227,6 +1228,99 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover { background: rgba(1
 
 /* smooth scrolling */
 html { scroll-behavior: smooth; }
+
+/* ───────────────────────────────────────────────────────────────────
+   17b. MOTION POLISH — tactile press, popover entrance, input lift,
+        themed scrollbars, sticky-header scroll shadow, row in/out.
+   One consistent language across the app, gated behind reduced-motion.
+   ─────────────────────────────────────────────────────────────────── */
+
+/* Universal press depth — every interactive surface "clicks" */
+.btn:active:not(:disabled),
+.qty-chip:active,
+.combobox-option:active,
+.topnav-item:active,
+.theme-toggle-btn:active,
+.amount-reset:active,
+.remove-row-btn:active,
+.aan-confirm-btn:active,
+.kpi-card:active,
+.quick-action-btn:active {
+  transform: scale(0.97);
+  transition: transform 80ms var(--ease-standard);
+}
+
+/* Dropdown / popover fade-down entrance */
+@keyframes dropDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.combobox-dropdown:not(.hidden),
+.qty-popover {
+  animation: dropDown 180ms var(--ease-decelerate);
+  transform-origin: top center;
+}
+
+/* Input focus surface lift — adds a soft inset glow on top of the
+   existing gold focus ring (border + outer shadow). Skip on inputs
+   that already have an .error state. */
+.form-group input:focus:not(.error),
+.form-group select:focus:not(.error),
+.form-group textarea:focus:not(.error),
+input.row-qty:focus,
+input.row-amount:focus,
+input.row-rate:focus,
+input.row-date:focus,
+input.row-challan:focus,
+input.combobox-input:focus {
+  box-shadow:
+    var(--shadow-focus, 0 0 0 3px rgba(137,126,1,0.20)),
+    inset 0 1px 4px rgba(137,126,1,0.10);
+  transition: box-shadow var(--duration-fast) var(--ease-standard),
+              border-color var(--duration-fast) var(--ease-standard);
+}
+
+/* Themed scrollbars — light theme */
+:root {
+  scrollbar-color: var(--color-gold-soft, #c8a24b) transparent;
+  scrollbar-width: thin;
+}
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--color-gold, #897e01), var(--color-gold-soft, #c8a24b));
+  border-radius: 999px;
+  border: 2px solid var(--color-surface-card, #fff);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--color-gold, #897e01); }
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--color-gold, #C9A227), #8a6f1a);
+  border-color: var(--color-surface-card, #0d1b2a);
+}
+
+/* Sticky top bar gains a soft shadow once the page is scrolled.
+   The .scrolled class is toggled by shell.js (passive scroll listener). */
+.topbar {
+  transition: box-shadow var(--duration-base) var(--ease-standard);
+}
+.topbar.scrolled {
+  box-shadow: 0 2px 14px rgba(0,0,0,0.08);
+}
+
+/* Row in/out (line items, list rows, client rows). The JS adds the
+   .row-entering class on insert and .row-exiting before delete. */
+@keyframes rowEnter {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes rowExit {
+  to { opacity: 0; transform: scale(0.985) translateY(-4px); }
+}
+.row-entering { animation: rowEnter 200ms var(--ease-decelerate); }
+.row-exiting  {
+  animation: rowExit 220ms var(--ease-accelerate) forwards;
+  pointer-events: none;
+}
 
 /* ─── 18. ACCESSIBILITY — Dimension 5: prefers-reduced-motion ─── */
 @media (prefers-reduced-motion: reduce) {

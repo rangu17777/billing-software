@@ -4,6 +4,7 @@ import { handleError } from '../shared/error-handler.js';
 import { showToast } from '../shared/toast.js';
 import { generateBillPDF } from '../pdf/pdf-generator.js';
 import { checkMilestone } from '../shared/confetti.js';
+import { iconRupee, iconCheckCircle, iconHourglass, iconReceipt } from '../shared/icons.js';
 import './dashboard.css';
 
 let stats = { totalBilled: 0, totalCollected: 0, totalBalance: 0, invoiceCount: 0 };
@@ -255,25 +256,25 @@ function kpiCards() {
   return `
     <div class="kpi-grid">
       <div class="kpi-card kpi-red">
-        <div class="kpi-icon red">💰</div>
+        <div class="kpi-icon red">${iconRupee}</div>
         <div class="kpi-label">Total Billed</div>
         <div class="kpi-value rupee" data-count="${stats.totalBilled}" data-prefix="₹">₹${fmt(stats.totalBilled)}</div>
         <div class="kpi-sub">SGST + CGST included</div>
       </div>
       <div class="kpi-card kpi-green">
-        <div class="kpi-icon green">✅</div>
+        <div class="kpi-icon green">${iconCheckCircle}</div>
         <div class="kpi-label">Amount Collected</div>
         <div class="kpi-value rupee" data-count="${stats.totalCollected}" data-prefix="₹">₹${fmt(stats.totalCollected)}</div>
         <div class="kpi-sub">Advances received</div>
       </div>
       <div class="kpi-card kpi-orange">
-        <div class="kpi-icon orange">⏳</div>
+        <div class="kpi-icon orange">${iconHourglass}</div>
         <div class="kpi-label">Pending Balance</div>
         <div class="kpi-value rupee" data-count="${stats.totalBalance}" data-prefix="₹">₹${fmt(stats.totalBalance)}</div>
         <div class="kpi-sub">Outstanding receivables</div>
       </div>
       <div class="kpi-card kpi-navy">
-        <div class="kpi-icon navy">🧾</div>
+        <div class="kpi-icon navy">${iconReceipt}</div>
         <div class="kpi-label">Total Invoices</div>
         <div class="kpi-value" data-count="${stats.invoiceCount}">${stats.invoiceCount}</div>
         <div class="kpi-sub">All-time bills created</div>

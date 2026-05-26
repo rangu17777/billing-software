@@ -324,10 +324,15 @@
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(2px);
   z-index: 900;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  animation: backdropIn 220ms var(--ease-decelerate);
+}
+.bpm-paper {
+  animation: modalSlideIn 360ms var(--ease-spring);
 }
 
 .bpm-shell {
