@@ -117,6 +117,24 @@ function attachScrollReveal(container) {
 // On Safari (no programmatic install) the banner shows manual instructions.
 let deferredInstallPrompt = null;
 
+// Catch the event as early as possible (when this module is first imported)
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  // If the shell is already rendered in the DOM, show the banner
+  const banner = document.querySelector('#pwa-banner');
+  if (banner) {
+    const dismissed = localStorage.getItem('aan-pwa-banner-dismissed') === '1';
+    const alreadyInstalled =
+      localStorage.getItem('aan-pwa-installed') === '1' ||
+      (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+      window.navigator.standalone === true;
+    if (!dismissed && !alreadyInstalled) {
+      banner.hidden = false;
+    }
+  }
+});
+
 function attachPwaInstall(container) {
   const banner   = container.querySelector('#pwa-banner');
   const textEl   = container.querySelector('#pwa-banner-text');
@@ -135,12 +153,10 @@ function attachPwaInstall(container) {
   const showBanner = () => { banner.hidden = false; };
   const hideBanner = () => { banner.hidden = true; };
 
-  // Chromium: native install prompt path
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredInstallPrompt = e;
+  // If the prompt has already fired, showcase the banner immediately!
+  if (deferredInstallPrompt) {
     showBanner();
-  });
+  }
 
   installB.addEventListener('click', async () => {
     if (!deferredInstallPrompt) return;
