@@ -1322,6 +1322,59 @@ input.combobox-input:focus {
   pointer-events: none;
 }
 
+/* ─── 17c. PWA INSTALL BANNER ────────────────────────────────────────────────
+   Sits between the sticky top bar and the page body. Dismissible; hides
+   permanently once the admin installs or clicks "Not now". */
+.pwa-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+  background: linear-gradient(90deg, var(--color-navy, #1a237e), #243088);
+  color: #fff;
+  border-bottom: 2px solid var(--color-gold, #897e01);
+  animation: pwaBannerIn 360ms var(--ease-spring);
+  z-index: 150;
+}
+.pwa-banner[hidden] { display: none; }
+.pwa-banner-icon {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-gold-soft, #c8a24b);
+  flex-shrink: 0;
+}
+.pwa-banner-text {
+  flex: 1;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+.pwa-banner-text strong { font-weight: 800; margin-right: 6px; }
+.pwa-banner .btn {
+  padding: 6px 14px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.pwa-banner .btn-ghost {
+  background: transparent;
+  color: rgba(255,255,255,0.78);
+  border-color: rgba(255,255,255,0.28);
+}
+.pwa-banner .btn-ghost:hover {
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  border-color: rgba(255,255,255,0.5);
+}
+@keyframes pwaBannerIn {
+  from { opacity: 0; transform: translateY(-100%); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (max-width: 640px) {
+  .pwa-banner { flex-wrap: wrap; padding: 10px 12px; gap: 8px; }
+  .pwa-banner-text { flex: 1 1 100%; }
+  .pwa-banner .btn { flex: 1; }
+}
+
 /* ─── 18. ACCESSIBILITY — Dimension 5: prefers-reduced-motion ─── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

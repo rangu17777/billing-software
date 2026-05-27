@@ -92,6 +92,13 @@ export async function navigate(route, params = {}) {
 
 window.navigate = navigate;
 
+// ── PWA service worker (production only — Vite HMR conflicts with SW in dev) ──
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => { /* fail silently */ });
+  });
+}
+
 // Check if Firebase is configured before initializing
 const firebaseKey = import.meta.env.VITE_FIREBASE_API_KEY;
 if (!firebaseKey || firebaseKey.startsWith('REPLACE_')) {
