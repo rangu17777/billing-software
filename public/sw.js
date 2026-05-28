@@ -1,13 +1,14 @@
 /**
  * AAN Billing Software — service worker.
  *
- * Minimal pass-through worker. Its sole job today is to satisfy the
- * Chromium PWA-install eligibility heuristic ("has a manifest + a service
- * worker with a fetch handler"). It does NOT cache anything yet, which
- * keeps deploys instant — no stale-asset surprises for the admin.
+ * Minimal worker that registers the app as a PWA so it stays installable
+ * from the browser toolbar. It deliberately has NO fetch handler — modern
+ * Chromium no longer requires one for installability, and an empty one only
+ * adds navigation overhead (and a console warning). No caching yet, so
+ * deploys stay instant with no stale-asset surprises.
  *
- * Future-proof: when offline support is wanted, replace the fetch handler
- * with a cache-first / network-falling-back strategy for static assets.
+ * Future-proof: to add offline support later, add a `fetch` listener with a
+ * real cache-first / network-falling-back strategy for static assets.
  */
 
 self.addEventListener('install', () => {
@@ -18,8 +19,4 @@ self.addEventListener('install', () => {
 self.addEventListener('activate', (event) => {
   // Claim all open tabs so they start using this SW without a reload
   event.waitUntil(self.clients.claim());
-});
-
-self.addEventListener('fetch', () => {
-  // Pass-through. (Empty handler still counts toward installability.)
 });

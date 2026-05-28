@@ -1,7 +1,6 @@
 import { logout } from '../auth/auth.js';
 import { getBrandLogo } from './logo.js';
 import { openPalette } from './command-palette.js';
-import { showToast } from './toast.js';
 
 export function renderShell(activePage, pageTitle, contentHtml) {
   const now = new Date();
@@ -56,16 +55,6 @@ export function renderShell(activePage, pageTitle, contentHtml) {
         </div>
       </header>
 
-      <div class="pwa-banner" id="pwa-banner" hidden>
-        <span class="pwa-banner-icon" aria-hidden="true">⬇</span>
-        <span class="pwa-banner-text" id="pwa-banner-text">
-          <strong>Install AAN Billing</strong>
-          for a real desktop app — opens in its own window, no browser tab.
-        </span>
-        <button class="btn btn-primary" id="pwa-install-btn">Install</button>
-        <button class="btn btn-ghost" id="pwa-dismiss-btn" aria-label="Dismiss install banner">Not now</button>
-      </div>
-
       <main class="main-canvas">
         <div class="page-body page-enter">
           ${contentHtml}
@@ -111,98 +100,6 @@ function attachScrollReveal(container) {
   targets.forEach(el => observer.observe(el));
 }
 
-// ── PWA install banner ───────────────────────────────────────────────────────
-// Captures the Chromium `beforeinstallprompt` event and surfaces a dismissible
-// banner the admin can click to install AAN Billing as a real desktop app.
-// On Safari (no programmatic install) the banner shows manual instructions.
-let deferredInstallPrompt = null;
-
-// Catch the event as early as possible (when this module is first imported)
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredInstallPrompt = e;
-  // If the shell is already rendered in the DOM, show the banner
-  const banner = document.querySelector('#pwa-banner');
-  if (banner) {
-    const dismissed = localStorage.getItem('aan-pwa-banner-dismissed') === '1';
-    const alreadyInstalled =
-      localStorage.getItem('aan-pwa-installed') === '1' ||
-      (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
-      window.navigator.standalone === true;
-    if (!dismissed && !alreadyInstalled) {
-      banner.hidden = false;
-    }
-  }
-});
-
-function attachPwaInstall(container) {
-  const banner   = container.querySelector('#pwa-banner');
-  const textEl   = container.querySelector('#pwa-banner-text');
-  const installB = container.querySelector('#pwa-install-btn');
-  const dismissB = container.querySelector('#pwa-dismiss-btn');
-  if (!banner || !installB || !dismissB) return;
-
-  const dismissed = localStorage.getItem('aan-pwa-banner-dismissed') === '1';
-  const alreadyInstalled =
-    localStorage.getItem('aan-pwa-installed') === '1' ||
-    (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
-    window.navigator.standalone === true;     // iOS Safari home-screen
-
-  if (dismissed || alreadyInstalled) return;
-
-  const showBanner = () => { banner.hidden = false; };
-  const hideBanner = () => { banner.hidden = true; };
-
-  // If the prompt has already fired, showcase the banner immediately!
-  if (deferredInstallPrompt) {
-    showBanner();
-  }
-
-  installB.addEventListener('click', async () => {
-    if (!deferredInstallPrompt) return;
-    installB.disabled = true;
-    try {
-      deferredInstallPrompt.prompt();
-      const { outcome } = await deferredInstallPrompt.userChoice;
-      deferredInstallPrompt = null;
-      hideBanner();
-      if (outcome === 'accepted') {
-        // The `appinstalled` event below will also fire and toast.
-      } else {
-        // User cancelled — treat like Not Now so we don't badger them.
-        localStorage.setItem('aan-pwa-banner-dismissed', '1');
-      }
-    } catch { /* swallow */ }
-    installB.disabled = false;
-  });
-
-  dismissB.addEventListener('click', () => {
-    localStorage.setItem('aan-pwa-banner-dismissed', '1');
-    hideBanner();
-  });
-
-  window.addEventListener('appinstalled', () => {
-    localStorage.setItem('aan-pwa-installed', '1');
-    hideBanner();
-    showToast('Installed — find AAN Billing on your desktop.', 'success');
-  });
-
-  // Safari fallback — no `beforeinstallprompt`. If after ~1.2s nothing fired
-  // and we're on iOS/macOS Safari (and not already standalone), surface the
-  // manual instructions instead.
-  setTimeout(() => {
-    if (deferredInstallPrompt || !banner.hidden) return;
-    const ua = navigator.userAgent || '';
-    const isIOSSafari = /iP(ad|hone|od)/.test(ua) && /Safari/.test(ua) && !/CriOS|FxiOS/.test(ua);
-    const isMacSafari = /Safari/.test(ua) && /Macintosh/.test(ua) && !/Chrome|Chromium/.test(ua);
-    if (isIOSSafari || isMacSafari) {
-      textEl.innerHTML = '<strong>Install AAN Billing</strong>tap <strong>Share</strong> → <strong>Add to Home Screen</strong>.';
-      installB.hidden = true;
-      showBanner();
-    }
-  }, 1200);
-}
-
 // Toggle a `.scrolled` class on the sticky top bar once the main canvas has
 // scrolled past ~10px — the CSS in global.css adds a soft drop shadow.
 function attachStickyHeaderShadow(container) {
@@ -226,7 +123,6 @@ function attachStickyHeaderShadow(container) {
 export function attachShellEvents(container) {
   attachScrollReveal(container);
   attachStickyHeaderShadow(container);
-  attachPwaInstall(container);
 
   // Brand logo (top bar) — auto-trimmed; falls back to text if it can't load.
   const brandImg = container.querySelector('#brand-logo');
