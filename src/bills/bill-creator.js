@@ -1423,7 +1423,7 @@ function showBillPreviewModal(container) {
                 <div class="bpm-site-row">Site Name: &nbsp;${escapeHtml(billData.client_site_name || '—')}</div>
               </div>
               <div class="bpm-bill-meta">
-                <div class="bpm-meta-row"><span>Bill No.:</span><strong>${billData.bill_no ? String(billData.bill_no).padStart(4, '0') : 'Auto'}</strong></div>
+                <div class="bpm-meta-row"><span>Bill No.:</span><strong>${billData.bill_no || 'Auto'}</strong></div>
                 <div class="bpm-meta-row"><span>Date:</span><strong>${fmtD(billData.date)}</strong></div>
                 <div class="bpm-meta-row"><span>Mobile:</span><strong>${escapeHtml(billData.client_mobile || '—')}</strong></div>
               </div>
@@ -1602,7 +1602,7 @@ async function doActualSave(container, mc) {
 
 // ── Save-success step: Download PDF / Send via WhatsApp / Go to Bills ──────────
 function showSaveSuccessModal(mc, bill, lineItems) {
-  const billNo = String(bill.bill_no).padStart(4, '0');
+  const billNo = String(bill.bill_no);
   mc.innerHTML = `
     <div class="modal-backdrop" id="save-success-backdrop">
       <div class="modal-box border-beam" style="max-width:440px;text-align:center">

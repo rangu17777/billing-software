@@ -129,7 +129,7 @@ function buildInsights(s, bills) {
     stories.push({
       icon: '\uD83E\uDDFE',
       label: 'Latest Invoice',
-      text: `The most recent bill is <strong>#${String(latest.bill_no || '').padStart(4,'0')}</strong> for <strong>${escapeHtml(latest.client_name || 'N/A')}</strong> on ${fmtDate(latest.date)}, totalling <strong>\u20B9${fmt(latest.grand_total)}</strong>.`,
+      text: `The most recent bill is <strong>#${latest.bill_no || ''}</strong> for <strong>${escapeHtml(latest.client_name || 'N/A')}</strong> on ${fmtDate(latest.date)}, totalling <strong>\u20B9${fmt(latest.grand_total)}</strong>.`,
     });
   }
 
@@ -298,7 +298,7 @@ function recentBillsSection() {
           const adv = parseFloat(b.advance || 0);
           return `
             <tr>
-              <td><span class="bill-no-badge">#${String(b.bill_no).padStart(4,'0')}</span></td>
+              <td><span class="bill-no-badge">#${b.bill_no}</span></td>
               <td>${fmtDate(b.date)}</td>
               <td style="font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(b.client_name)}</td>
               <td><span class="amt-billed">₹${fmt(b.grand_total)}</span></td>
@@ -486,7 +486,7 @@ async function downloadPDF(bill, btn) {
       .from('bill_items').select('*').eq('bill_id', bill.id).order('sr_no', { ascending: true });
     if (error) throw error;
     await generateBillPDF(bill, lineItems);
-    showToast(`Invoice #${String(bill.bill_no).padStart(4,'0')} PDF ready.`, 'success');
+    showToast(`Invoice #${bill.bill_no} PDF ready.`, 'success');
   } catch (err) {
     handleError(err);
   } finally {

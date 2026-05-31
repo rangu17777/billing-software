@@ -149,7 +149,7 @@ function renderBillsTable(list, formatDate) {
       <tbody>
         ${list.map(b => `
           <tr data-id="${b.id}">
-            <td class="font-semibold text-mono" style="color: var(--color-navy)">#${String(b.bill_no).padStart(4, '0')}</td>
+            <td class="font-semibold text-mono" style="color: var(--color-navy)">#${b.bill_no}</td>
             <td>${formatDate(b.date)}</td>
             <td class="font-semibold">${escapeHtml(b.client_name)}</td>
             <td>${escapeHtml(b.client_site_name || '—')}</td>
@@ -282,7 +282,7 @@ async function downloadPDF(bill, buttonEl) {
     if (error) throw error;
     
     await generateBillPDF(bill, lineItems);
-    showToast(`Invoice #${String(bill.bill_no).padStart(4, '0')} PDF generated.`, 'success');
+    showToast(`Invoice #${bill.bill_no} PDF generated.`, 'success');
   } catch (error) {
     handleError(error);
   } finally {
@@ -293,8 +293,8 @@ async function downloadPDF(bill, buttonEl) {
 
 function confirmDeleteBill(bill, container) {
   showConfirm(
-    `Delete Bill #${String(bill.bill_no).padStart(4, '0')}?`,
-    `Permanently delete Bill #${String(bill.bill_no).padStart(4, '0')} for ${bill.client_name}? All line items will also be deleted. This cannot be undone.`,
+    `Delete Bill #${bill.bill_no}?`,
+    `Permanently delete Bill #${bill.bill_no} for ${bill.client_name}? All line items will also be deleted. This cannot be undone.`,
     async () => {
       // Visually fade the row out while the network delete runs in parallel.
       const row = container.querySelector(`tr[data-id="${bill.id}"]`);

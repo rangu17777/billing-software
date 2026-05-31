@@ -17,7 +17,7 @@ export function normalizePhone(raw) {
 }
 
 function buildMessage(bill, pdfUrl) {
-  const billNo = String(bill.bill_no).padStart(4, '0');
+  const billNo = String(bill.bill_no);
   const total = parseFloat(bill.grand_total || 0).toLocaleString('en-IN');
   const balance = parseFloat(bill.balance || 0).toLocaleString('en-IN');
   const lines = [
