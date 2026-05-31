@@ -15,6 +15,7 @@ let machines = [];
 let autosaveIntervalId = null;
 
 let billData = {
+  bill_no: null,                 // null = use the server-side auto-sequence
   date: new Date().toISOString().split('T')[0],
   client_id: '',
   client_name: '',
@@ -59,6 +60,7 @@ export async function render(container, params = {}) {
 
   // Reset billData for fresh form
   billData = {
+    bill_no: null,
     date: new Date().toISOString().split('T')[0],
     client_id: '', client_name: '', client_site_name: '',
     client_mobile: '', client_address: '', client_gst_no: '',
@@ -68,6 +70,17 @@ export async function render(container, params = {}) {
     grand_total: 0, balance: 0, amount_in_words: 'Zero Only',
     lineItems: [newBlankRow(1)]
   };
+
+  // Pre-fill the Bill No. with MAX(bill_no)+1 so the admin always sees what
+  // number the next bill will get, while still being free to edit it.
+  try {
+    const { data: latest } = await supabase
+      .from('bills')
+      .select('bill_no')
+      .order('bill_no', { ascending: false })
+      .limit(1);
+    billData.bill_no = (latest?.[0]?.bill_no || 0) + 1;
+  } catch { /* fall through — input shows "Auto" placeholder */ }
 
   renderForm(container); // skeleton
   await Promise.all([fetchClients(), fetchMachines()]);
@@ -155,6 +168,14 @@ function renderForm(container, showDraftPrompt = false, draft = null) {
                 <label for="bill-date">Bill Date *</label>
                 <input type="date" id="bill-date" name="date" value="${billData.date}" required />
                 <div class="form-error-msg hidden" id="err-bill-date">Required.</div>
+              </div>
+
+              <!-- Bill No. (editable, pre-filled with next auto value) -->
+              <div class="form-group" style="width:120px">
+                <label for="bill-no">Bill No. *</label>
+                <input type="number" id="bill-no" name="bill_no" min="1" step="1"
+                       value="${billData.bill_no ?? ''}" placeholder="Auto" required />
+                <div class="form-error-msg hidden" id="err-bill-no">Bill number already exists.</div>
               </div>
             </div>
 
@@ -529,6 +550,14 @@ function attachFormEvents(container) {
     billData.date = e.target.value;
   });
 
+  // ── BILL NO. (editable; null falls back to server-side auto-sequence) ──
+  container.querySelector('#bill-no').addEventListener('input', (e) => {
+    const v = parseInt(e.target.value, 10);
+    billData.bill_no = Number.isFinite(v) && v > 0 ? v : null;
+    container.querySelector('#err-bill-no').classList.add('hidden');
+    e.target.classList.remove('error');
+  });
+
   // ── GST RATES (editable %) — change clears the manual-amount override so
   //    the amount auto-recomputes from the new rate ──
   container.querySelector('#summary-sgst-rate').addEventListener('input', (e) => {
@@ -592,6 +621,7 @@ function attachFormEvents(container) {
       () => {
         clearDraft();
         billData = {
+          bill_no: null,
           date: new Date().toISOString().split('T')[0],
           client_id: '', client_name: '', client_site_name: '',
           client_mobile: '', client_address: '', client_gst_no: '',
@@ -1289,6 +1319,13 @@ async function saveBill(container) {
     container.querySelector('#err-bill-date').classList.remove('hidden');
     hasError = true;
   }
+  if (!(billData.bill_no > 0)) {
+    const errBox  = container.querySelector('#err-bill-no');
+    const inputEl = container.querySelector('#bill-no');
+    if (inputEl) inputEl.classList.add('error');
+    if (errBox) { errBox.textContent = 'Enter a valid bill number.'; errBox.classList.remove('hidden'); }
+    hasError = true;
+  }
   if (billData.lineItems.length === 0) {
     showToast('Add at least one line item.', 'warning');
     return;
@@ -1386,7 +1423,7 @@ function showBillPreviewModal(container) {
                 <div class="bpm-site-row">Site Name: &nbsp;${escapeHtml(billData.client_site_name || '—')}</div>
               </div>
               <div class="bpm-bill-meta">
-                <div class="bpm-meta-row"><span>Bill No.:</span><strong>Auto</strong></div>
+                <div class="bpm-meta-row"><span>Bill No.:</span><strong>${billData.bill_no ? String(billData.bill_no).padStart(4, '0') : 'Auto'}</strong></div>
                 <div class="bpm-meta-row"><span>Date:</span><strong>${fmtD(billData.date)}</strong></div>
                 <div class="bpm-meta-row"><span>Mobile:</span><strong>${escapeHtml(billData.client_mobile || '—')}</strong></div>
               </div>
@@ -1495,6 +1532,8 @@ async function doActualSave(container, mc) {
     const { data: billRecord, error: billError } = await supabase
       .from('bills')
       .insert([{
+        // Only send bill_no when the admin set one; null lets the DB sequence assign it.
+        ...(billData.bill_no ? { bill_no: billData.bill_no } : {}),
         date: billData.date,
         client_id: billData.client_id,
         client_name: billData.client_name,
@@ -1536,6 +1575,25 @@ async function doActualSave(container, mc) {
     showToast(`Bill #${billRecord.bill_no} saved successfully!`, 'success');
     showSaveSuccessModal(mc, billRecord, billData.lineItems);
   } catch (err) {
+    // Friendly inline handling when the chosen bill_no collides with an
+    // existing one (Postgres unique-violation, code 23505). Otherwise fall
+    // through to the generic toast/log path.
+    const isDuplicateBillNo =
+      err?.code === '23505' &&
+      (err?.message?.toLowerCase().includes('bill_no') ||
+       err?.details?.toLowerCase().includes('bill_no'));
+    if (isDuplicateBillNo) {
+      const errBox  = container.querySelector('#err-bill-no');
+      const inputEl = container.querySelector('#bill-no');
+      if (errBox) { errBox.textContent = 'Bill number already exists.'; errBox.classList.remove('hidden'); }
+      if (inputEl) inputEl.classList.add('error');
+      showToast(`Bill number ${billData.bill_no} is already used. Pick another.`, 'error');
+      // Close the preview modal so the admin can edit the number directly.
+      mc.innerHTML = '';
+      document.removeEventListener('click', handleOutsideClick, { capture: true });
+      inputEl?.focus();
+      return;
+    }
     handleError(err);
     confirmBtn.disabled = false;
     confirmBtn.textContent = 'Confirm & Save Bill';
