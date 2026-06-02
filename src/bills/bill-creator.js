@@ -1201,8 +1201,10 @@ function calculateRowAmount(idx) {
 function recalculateTotals() {
   const subtotal = billData.lineItems.reduce((s, it) => s + (it.amount || 0), 0);
   billData.subtotal    = subtotal;
-  if (!billData.sgstManual) billData.sgst = Math.round(subtotal * (billData.sgstRate || 9) / 100);
-  if (!billData.cgstManual) billData.cgst = Math.round(subtotal * (billData.cgstRate || 9) / 100);
+  // Nullish coalescing (??) — NOT || — so a deliberate 0% rate stays 0% and
+  // doesn't silently fall back to the 9% default (falsy-zero bug).
+  if (!billData.sgstManual) billData.sgst = Math.round(subtotal * (billData.sgstRate ?? 9) / 100);
+  if (!billData.cgstManual) billData.cgst = Math.round(subtotal * (billData.cgstRate ?? 9) / 100);
   billData.grand_total = subtotal + billData.sgst + billData.cgst;
   billData.balance     = billData.grand_total - billData.advance;
   billData.amount_in_words = amountInWords(billData.grand_total);
