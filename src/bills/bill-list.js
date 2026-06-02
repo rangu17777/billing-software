@@ -166,6 +166,9 @@ function renderBillsTable(list, formatDate) {
                 <button class="btn btn-ghost print-bill-btn" data-id="${b.id}" title="Download PDF" style="padding: 4px 8px; font-size: var(--text-xs); border-color: var(--color-border)">
                   🖨️
                 </button>
+                <button class="btn btn-ghost edit-bill-btn" data-id="${b.id}" title="Edit Bill" style="padding: 4px 8px; font-size: var(--text-xs); border-color: var(--color-border)">
+                  ✏️
+                </button>
                 <button class="btn btn-danger delete-bill-btn" data-id="${b.id}" title="Delete Bill" style="padding: 4px 8px; font-size: var(--text-xs)">
                   🗑️
                 </button>
@@ -230,6 +233,13 @@ function attachLocalEvents(container, filteredList) {
       if (bill) {
         await shareViaWhatsApp(bill, btn);
       }
+    });
+  });
+
+  container.querySelectorAll('.edit-bill-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      window.navigate('new-bill', { billId: btn.getAttribute('data-id') });
     });
   });
 
