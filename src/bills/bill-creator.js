@@ -13,6 +13,7 @@ import { sendBillViaWhatsApp } from '../shared/whatsapp.js';
 let clients = [];
 let machines = [];
 let autosaveIntervalId = null;
+let editingBillId = null;          // null = create mode; UUID = edit existing bill
 
 let billData = {
   bill_no: null,                 // null = use the server-side auto-sequence
@@ -57,6 +58,7 @@ function newBlankRow(srNo, prevDate = '') {
 // ── Entry point ───────────────────────────────────────────────────────────────
 export async function render(container, params = {}) {
   if (autosaveIntervalId) { clearInterval(autosaveIntervalId); autosaveIntervalId = null; }
+  editingBillId = params.billId || null;
 
   // Reset billData for fresh form
   billData = {
@@ -71,8 +73,18 @@ export async function render(container, params = {}) {
     lineItems: [newBlankRow(1)]
   };
 
-  // Pre-fill the Bill No. with MAX(bill_no)+1 so the admin always sees what
-  // number the next bill will get, while still being free to edit it.
+  // ── EDIT MODE: load the bill, skip MAX+1 prefill / draft / autosave ──
+  if (editingBillId) {
+    renderForm(container);                              // skeleton while we fetch
+    await Promise.all([fetchClients(), fetchMachines()]);
+    const ok = await loadBillForEdit(editingBillId);
+    if (!ok) return;                                     // already navigated away
+    renderForm(container);                               // re-render fully populated
+    return;
+  }
+
+  // ── CREATE MODE: pre-fill Bill No. with MAX+1 so the admin always sees the
+  //    next number and can edit it freely.
   try {
     const { data: latest } = await supabase
       .from('bills')
@@ -93,6 +105,80 @@ export async function render(container, params = {}) {
   }
 
   autosaveIntervalId = startAutosave(() => billData);
+}
+
+// Pulls a bill + its line items from Supabase and hydrates billData so the
+// existing Create Bill form can be reused for editing. Returns true on success;
+// returns false (and navigates to bills list) if the bill no longer exists.
+async function loadBillForEdit(billId) {
+  const { data: bill, error: billErr } = await supabase
+    .from('bills')
+    .select('*')
+    .eq('id', billId)
+    .maybeSingle();
+  if (billErr || !bill) {
+    showToast('Bill not found. It may have been deleted.', 'error');
+    window.navigate('bills');
+    return false;
+  }
+
+  const { data: items, error: itemsErr } = await supabase
+    .from('bill_items')
+    .select('*')
+    .eq('bill_id', billId)
+    .order('sr_no', { ascending: true });
+  if (itemsErr) {
+    showToast('Failed to load bill items.', 'error');
+    window.navigate('bills');
+    return false;
+  }
+
+  // Copy stored columns one-to-one onto billData
+  billData.bill_no          = bill.bill_no;
+  billData.date             = bill.date;
+  billData.client_id        = bill.client_id || '';
+  billData.client_name      = bill.client_name || '';
+  billData.client_site_name = bill.client_site_name || '';
+  billData.client_mobile    = bill.client_mobile || '';
+  billData.client_address   = bill.client_address || '';
+  billData.client_gst_no    = bill.client_gst_no || '';
+  billData.advance          = parseFloat(bill.advance) || 0;
+  billData.subtotal         = parseFloat(bill.subtotal) || 0;
+  billData.sgst             = parseFloat(bill.sgst) || 0;
+  billData.cgst             = parseFloat(bill.cgst) || 0;
+  billData.grand_total      = parseFloat(bill.grand_total) || 0;
+  billData.balance          = parseFloat(bill.balance) || 0;
+  billData.amount_in_words  = bill.amount_in_words || 'Zero Only';
+  billData.sgstManual       = false;
+  billData.cgstManual       = false;
+
+  // sgstRate / cgstRate aren't stored on the bills table — derive from amounts
+  const sub = billData.subtotal;
+  const r2  = (n) => Math.round(n * 100) / 100;
+  billData.sgstRate = sub > 0 ? r2((billData.sgst / sub) * 100) : 9;
+  billData.cgstRate = sub > 0 ? r2((billData.cgst / sub) * 100) : 9;
+
+  // Rebuild lineItems; rate_type lives on the machine, not on bill_items
+  billData.lineItems = (items || []).map((it) => {
+    const machine = machines.find(m => m.id === it.machine_id);
+    return {
+      sr_no:         it.sr_no,
+      date:          it.date || '',
+      challan_no:    it.challan_no || '',
+      machine_id:    it.machine_id || '',
+      description:   it.description || '',
+      vehicle_no:    it.vehicle_no || '',
+      qty_unit:      it.qty_unit || '',
+      qty_decimal:   parseFloat(it.qty_decimal) || 0,
+      rate:          parseFloat(it.rate) || 0,
+      amount:        parseFloat(it.amount) || 0,
+      amount_manual: false,
+      rate_type:     machine?.rate_type || 'hourly',
+    };
+  });
+  if (billData.lineItems.length === 0) billData.lineItems = [newBlankRow(1)];
+
+  return true;
 }
 
 async function fetchClients() {
@@ -297,7 +383,7 @@ function renderForm(container, showDraftPrompt = false, draft = null) {
           <div class="flex gap-2">
             <button type="button" class="btn btn-secondary" id="clear-bill-btn" style="padding:10px 20px">Clear Form</button>
             <button type="submit" class="btn btn-primary" id="save-bill-btn" ${isReady ? '' : 'disabled'}>
-              Save Bill
+              ${editingBillId ? 'Save Changes' : 'Save Bill'}
             </button>
           </div>
         </div>
@@ -306,7 +392,10 @@ function renderForm(container, showDraftPrompt = false, draft = null) {
     </div>
   `;
 
-  container.innerHTML = renderShell('new-bill', 'Create Bill', contentHtml);
+  const pageTitle = editingBillId
+    ? `Edit Bill #${billData.bill_no || ''}`
+    : 'Create Bill';
+  container.innerHTML = renderShell('new-bill', pageTitle, contentHtml);
   attachShellEvents(container);
   if (isReady) attachFormEvents(container);
 
@@ -611,7 +700,8 @@ function attachFormEvents(container) {
   // ── CANCEL & CLEAR ──
   container.querySelector('#cancel-bill-btn').addEventListener('click', () => {
     document.removeEventListener('click', handleOutsideClick, { capture: true });
-    window.navigate('dashboard');
+    // Editing? Return to the Bills list (where they came from). Otherwise dashboard.
+    window.navigate(editingBillId ? 'bills' : 'dashboard');
   });
 
   container.querySelector('#clear-bill-btn').addEventListener('click', () => {
@@ -1386,13 +1476,13 @@ function showBillPreviewModal(container) {
 
         <div class="bpm-toolbar">
           <div>
-            <span class="bpm-toolbar-title">Review Bill Before Saving</span>
+            <span class="bpm-toolbar-title">${editingBillId ? 'Review Changes Before Saving' : 'Review Bill Before Saving'}</span>
             <span class="bpm-toolbar-sub">Confirm all details are correct, then save.</span>
           </div>
           <div style="display:flex;gap:10px">
             <button class="btn btn-ghost bpm-ghost-btn" id="bpm-back-btn">← Back to Edit</button>
             <button class="btn btn-primary" id="bpm-confirm-btn" style="padding:10px 28px">
-              Confirm &amp; Save Bill
+              ${editingBillId ? 'Confirm &amp; Save Changes' : 'Confirm &amp; Save Bill'}
             </button>
           </div>
         </div>
@@ -1528,51 +1618,80 @@ async function doActualSave(container, mc) {
   confirmBtn.disabled = true;
   confirmBtn.innerHTML = '<span class="spinner"></span> Saving…';
 
+  // Shared payload — identical for INSERT and UPDATE; bill_no is always sent
+  // in edit mode (admin's choice is authoritative), and optional in create mode
+  // (omit to let the DB sequence assign it).
+  const billPayload = {
+    ...(billData.bill_no || editingBillId ? { bill_no: billData.bill_no } : {}),
+    date: billData.date,
+    client_id: billData.client_id,
+    client_name: billData.client_name,
+    client_site_name: billData.client_site_name,
+    client_mobile: billData.client_mobile,
+    client_address: billData.client_address,
+    client_gst_no: billData.client_gst_no,
+    subtotal: billData.subtotal,
+    sgst: billData.sgst,
+    cgst: billData.cgst,
+    grand_total: billData.grand_total,
+    advance: billData.advance,
+    balance: billData.balance,
+    amount_in_words: billData.amount_in_words
+  };
+
+  const itemsPayload = (billId) => billData.lineItems.map(item => ({
+    bill_id: billId,
+    sr_no: item.sr_no,
+    date: item.date,
+    challan_no: item.challan_no || null,
+    machine_id: item.machine_id,
+    description: item.description,
+    vehicle_no: item.vehicle_no,
+    qty_unit: item.qty_unit,
+    qty_decimal: item.qty_decimal,
+    rate: item.rate,
+    amount: item.amount
+  }));
+
   try {
-    const { data: billRecord, error: billError } = await supabase
-      .from('bills')
-      .insert([{
-        // Only send bill_no when the admin set one; null lets the DB sequence assign it.
-        ...(billData.bill_no ? { bill_no: billData.bill_no } : {}),
-        date: billData.date,
-        client_id: billData.client_id,
-        client_name: billData.client_name,
-        client_site_name: billData.client_site_name,
-        client_mobile: billData.client_mobile,
-        client_address: billData.client_address,
-        client_gst_no: billData.client_gst_no,
-        subtotal: billData.subtotal,
-        sgst: billData.sgst,
-        cgst: billData.cgst,
-        grand_total: billData.grand_total,
-        advance: billData.advance,
-        balance: billData.balance,
-        amount_in_words: billData.amount_in_words
-      }])
-      .select().single();
+    let billRecord;
 
-    if (billError) throw billError;
+    if (editingBillId) {
+      // ── EDIT: UPDATE the bill row, then replace its line items ──
+      const { data, error: billError } = await supabase
+        .from('bills')
+        .update(billPayload)
+        .eq('id', editingBillId)
+        .select().single();
+      if (billError) throw billError;
+      billRecord = data;
 
-    const { error: itemsError } = await supabase.from('bill_items').insert(
-      billData.lineItems.map(item => ({
-        bill_id: billRecord.id,
-        sr_no: item.sr_no,
-        date: item.date,
-        challan_no: item.challan_no || null,
-        machine_id: item.machine_id,
-        description: item.description,
-        vehicle_no: item.vehicle_no,
-        qty_unit: item.qty_unit,
-        qty_decimal: item.qty_decimal,
-        rate: item.rate,
-        amount: item.amount
-      }))
-    );
-    if (itemsError) throw itemsError;
+      // Replace line items: delete the old set, insert the new one.
+      const { error: delError } = await supabase
+        .from('bill_items').delete().eq('bill_id', editingBillId);
+      if (delError) throw delError;
+
+      const { error: itemsError } = await supabase
+        .from('bill_items').insert(itemsPayload(editingBillId));
+      if (itemsError) throw itemsError;
+    } else {
+      // ── CREATE: INSERT a fresh bill + its line items ──
+      const { data, error: billError } = await supabase
+        .from('bills')
+        .insert([billPayload])
+        .select().single();
+      if (billError) throw billError;
+      billRecord = data;
+
+      const { error: itemsError } = await supabase
+        .from('bill_items').insert(itemsPayload(billRecord.id));
+      if (itemsError) throw itemsError;
+    }
 
     clearDraft();
     document.removeEventListener('click', handleOutsideClick, { capture: true });
-    showToast(`Bill #${billRecord.bill_no} saved successfully!`, 'success');
+    const verb = editingBillId ? 'updated' : 'saved';
+    showToast(`Bill #${billRecord.bill_no} ${verb} successfully!`, 'success');
     showSaveSuccessModal(mc, billRecord, billData.lineItems);
   } catch (err) {
     // Friendly inline handling when the chosen bill_no collides with an
@@ -1596,7 +1715,7 @@ async function doActualSave(container, mc) {
     }
     handleError(err);
     confirmBtn.disabled = false;
-    confirmBtn.textContent = 'Confirm & Save Bill';
+    confirmBtn.textContent = editingBillId ? 'Confirm & Save Changes' : 'Confirm & Save Bill';
   }
 }
 
@@ -1607,9 +1726,9 @@ function showSaveSuccessModal(mc, bill, lineItems) {
     <div class="modal-backdrop" id="save-success-backdrop">
       <div class="modal-box border-beam" style="max-width:440px;text-align:center">
         <div style="width:56px;height:56px;border-radius:50%;background:#E8F5E9;display:flex;align-items:center;justify-content:center;margin:4px auto 12px;font-size:28px;color:#2E7D32">✓</div>
-        <h3 class="mb-1" style="color:var(--color-navy)">Bill #${billNo} Saved</h3>
+        <h3 class="mb-1" style="color:var(--color-navy)">Bill #${billNo} ${editingBillId ? 'Updated' : 'Saved'}</h3>
         <p class="text-muted mb-3" style="font-size:var(--text-sm)">
-          Saved for <strong>${escapeHtml(bill.client_name || '')}</strong> — Grand Total ₹${parseFloat(bill.grand_total || 0).toLocaleString('en-IN')}.
+          ${editingBillId ? 'Updated' : 'Saved'} for <strong>${escapeHtml(bill.client_name || '')}</strong> — Grand Total ₹${parseFloat(bill.grand_total || 0).toLocaleString('en-IN')}.
         </p>
         <div class="flex flex-col gap-2" style="margin-bottom:12px">
           <button class="btn" id="ss-whatsapp-btn" style="background:#25D366;color:#fff;border-color:#25D366;padding:10px">
