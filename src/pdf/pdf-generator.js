@@ -8,13 +8,13 @@ export { getCleanLogo };
 // Company GSTIN — printed on every bill by default (also shown on the dashboard).
 const COMPANY_GSTIN = '27BISPN4599L1Z3';
 
-const RED       = [211, 47, 47];
-const NAVY      = [26, 35, 126];
-const BLACK     = [33, 33, 33];
-const WHITE     = [255, 255, 255];
-const LGRAY     = [245, 245, 245];
-const SOFT_GRAY = [130, 130, 130];   // border colour for info / footer boxes
-const TABLE_GRAY = [210, 210, 210];  // body-cell grid lines (lighter, no "collapsing")
+const RED        = [211, 47, 47];
+const NAVY       = [26, 35, 126];
+const BLACK      = [33, 33, 33];
+const WHITE      = [255, 255, 255];
+const LGRAY      = [245, 245, 245];
+const SOFT_GRAY  = [130, 130, 130];   // border colour for info / footer boxes
+const TABLE_GRAY = [210, 210, 210];   // body-cell grid lines (lighter, no "collapsing")
 
 const fmt = (n) => parseFloat(n || 0).toLocaleString('en-IN');
 const fmtDate = (s) => {
@@ -41,14 +41,7 @@ function geometry(doc) {
   return { W, H, LM, RM, CX, STRIP_W, CONTENT_X, CONTENT_R, CONTENT_W, SIDE_BOX_W, SIDE_BOX_X };
 }
 
-// Where the line-items table starts on every page (just below the full header).
-// 86 leaves a clean ~5 mm gap below the bill-info box (which ends at y ≈ 81)
-// — without this the red column header was butting up against the Mob row.
-const HEADER_BOTTOM  = 86;
-// Space the bottom block (grand total + footer + words + signature) needs.
-const BOTTOM_BLOCK_H = 90;
-// Bottom-of-page safety clearance.
-const BOTTOM_SAFETY  = 5;
+const BOTTOM_SAFETY = 5;   // bottom-of-page safety clearance
 
 // ── Download entry point (used by dashboard + bills list) ─────────────────────
 export async function generateBillPDF(bill, lineItems) {
@@ -65,19 +58,60 @@ export async function getBillPDFBlob(bill, lineItems) {
 
 // Builds the jsPDF document.
 //
-// Layout invariants:
-//   • Every page begins with the full company header (logo + address + GSTIN
-//     + To/Bill No./Date box) — drawn via autoTable's didDrawPage hook so it
-//     repeats automatically on pages 2, 3, ...
-//   • The red column header row repeats on every page too (autoTable default
-//     `showHead: 'everyPage'`).
-//   • Serial numbers continue naturally (autoTable renders the next slice).
-//   • The Grand Total bar + Total/Advance/Balance footer + Rs.-in-Words band
-//     + Authorised Signatory appear ONCE at the very end. If there isn't
-//     room on the last table page, they get a fresh page (with the full
-//     header repeated above them).
+// ADAPTIVE SIZING: a single `density` variable, chosen from the row count,
+// scales the logo, header fonts, table fonts, padding, and the bottom block:
+//
+//   • ≤ 7 items  → density 1.00 ("big" mode, today's spacious look).
+//   • ≥ 8 items  → density 0.78 ("compact" mode), so ~15 items + tax +
+//                  Grand Total + footer + signature fit one A4 page.
+//
+// Beyond what compact mode fits (~16+ items), the table paginates
+// automatically (full header repeated on every page via autoTable's
+// didDrawPage; signature only on the last page).
 export async function buildBillPDFDoc(bill, lineItems) {
   const logo = await getCleanLogo();
+
+  // ── Density + scaled constants ────────────────────────────────────────────
+  // Threshold = 7: 7 items is the empirical single-page cap at density 1.0,
+  // so 8-item bills jump to compact mode (which fits up to ~15 single page).
+  const density = lineItems.length <= 7 ? 1 : 0.78;
+  const sc = (v, min) => Math.max(min, +(v * density).toFixed(2));
+
+  // Layout (mm)
+  const HEADER_BOTTOM  = sc(86,  65);
+  const BOTTOM_BLOCK_H = sc(90,  70);
+  const LOGO_H         = sc(32,  24);
+  const BILL_INFO_H    = sc(26,  20);
+  const GT_H           = sc(12,  10);
+  const FOOT_BOX_H     = sc(28,  22);
+  const WORDS_BAND_H   = sc(12,  10);
+  const TABLE_PAD      = sc(2.8, 2);
+  const TABLE_HEAD_MIN = sc(12,  9);
+
+  // Fonts (pt)
+  const F_ADDRESS      = sc(9.5,  7.5);
+  const F_GSTIN_HDR    = sc(9,    7.5);
+  const F_TO_LABEL     = sc(10,   8);
+  const F_CLIENT_NAME  = sc(12,   10);
+  const F_BILLINFO_LBL = sc(9.5,  7.5);
+  const F_BILLINFO_VAL = sc(10.5, 8.5);
+  const F_TABLE_HEAD   = sc(9.5,  8);
+  const F_TABLE_BODY   = sc(9,    7.5);
+  const F_TABLE_TAX    = sc(10,   8.5);
+  const F_GRAND_TOTAL  = sc(13,   11);
+  const F_FOOT_CLIENT  = sc(11,   9.5);
+  const F_FOOT_ADDR    = sc(9,    8);
+  const F_TOTAL_HEAD   = sc(12,   10);
+  const F_TOTAL_VAL    = sc(11,   9.5);
+  const F_WORDS_LBL    = sc(11,   9.5);
+  const F_WORDS_VAL    = sc(11,   9.5);
+  const F_SIG_NAME     = sc(10,   8.5);
+  const F_SIG_LABEL    = sc(8,    7);
+
+  // Signature vertical rhythm (mm)
+  const SIG_PAD_TOP    = sc(10, 7);
+  const SIG_LINE_GAP   = sc(12, 9);
+  const SIG_LABEL_GAP  = sc(4,  3);
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const { H, RM, CONTENT_X } = geometry(doc);
@@ -117,13 +151,13 @@ export async function buildBillPDFDoc(bill, lineItems) {
     headStyles: {
       fillColor: RED,
       textColor: WHITE,
-      fontSize: 9.5,
+      fontSize: F_TABLE_HEAD,
       fontStyle: 'bold',
       halign: 'center',
       valign: 'middle',
       lineColor: WHITE,
       lineWidth: 0.3,
-      minCellHeight: 12
+      minCellHeight: TABLE_HEAD_MIN
     },
     // Column widths sum to CONTENT_W (199 mm).
     columnStyles: {
@@ -137,8 +171,8 @@ export async function buildBillPDFDoc(bill, lineItems) {
       7: { cellWidth: 28, halign: 'right'  }    // Amount
     },
     styles: {
-      fontSize: 9,
-      cellPadding: { top: 2.8, bottom: 2.8, left: 3, right: 3 },
+      fontSize: F_TABLE_BODY,
+      cellPadding: { top: TABLE_PAD, bottom: TABLE_PAD, left: 3, right: 3 },
       // Lighter grid + thinner stroke so the shared cell edges in autoTable's
       // grid theme don't stack into heavy-looking "collapsed" vertical lines.
       lineColor: TABLE_GRAY,
@@ -153,13 +187,13 @@ export async function buildBillPDFDoc(bill, lineItems) {
         data.cell.styles.fillColor = [255, 248, 225];
         data.cell.styles.fontStyle = 'bold';
         data.cell.styles.textColor = NAVY;
-        data.cell.styles.fontSize  = 10;          // a touch larger for the tax rows
+        data.cell.styles.fontSize  = F_TABLE_TAX;
       }
     },
     // Full company header + red strip on EVERY page autoTable creates.
     didDrawPage: () => {
       drawPageStrip(doc);
-      drawPageHeader(doc, bill, logo);
+      drawPageHeader();
     }
   });
 
@@ -170,12 +204,229 @@ export async function buildBillPDFDoc(bill, lineItems) {
   if (finalY + BOTTOM_BLOCK_H > PAGE_BOTTOM) {
     doc.addPage();
     drawPageStrip(doc);
-    drawPageHeader(doc, bill, logo);
+    drawPageHeader();
     finalY = HEADER_BOTTOM;
   }
-  drawBottomBlock(doc, bill, finalY);
+  drawBottomBlock(finalY);
 
   return doc;
+
+  // ── Inner helpers (close over `bill`, `logo`, density-scaled constants) ───
+
+  // Full company header (logo + address + mobile + GSTIN + email + bill-info
+  // box). Drawn on every page so a long bill reads as one continuous document.
+  function drawPageHeader() {
+    const { W, RM, CX, CONTENT_X, CONTENT_R, CONTENT_W, SIDE_BOX_W, SIDE_BOX_X } = geometry(doc);
+
+    // ── Cleaned AAN logo lockup ───────────────────────────────────────────
+    let y = 4;
+    let logoW = LOGO_H * logo.aspect;
+    const maxLogoW = W - CONTENT_X - RM - 70; // leave room for top-right GSTIN
+    if (logoW > maxLogoW) logoW = maxLogoW;
+    const logoX = CX - logoW / 2;
+    doc.addImage(logo.dataUrl, 'JPEG', logoX, y, logoW, LOGO_H);
+    y += LOGO_H + sc(4, 3);
+
+    // ── Address + contact (3 centered lines; GSTIN rides on the Mob row) ──
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(F_ADDRESS);
+    doc.setTextColor(...BLACK);
+    doc.text('Add.: A/p Ambadwet, Tal. Mulshi, Dist - Pune.', CX, y, { align: 'center' });
+    y += sc(4.5, 3.6);
+    doc.text('Mob.: 7875396396 / 9921353533 / 9822111882', CX, y, { align: 'center' });
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(F_GSTIN_HDR);
+    doc.setTextColor(...NAVY);
+    doc.text(`GSTIN: ${COMPANY_GSTIN}`, CONTENT_R - 1, y, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(F_ADDRESS);
+    doc.setTextColor(...BLACK);
+    y += sc(4.5, 3.6);
+    doc.text('Email: aanagre.machinery@gmail.com', CX, y, { align: 'center' });
+    y += sc(3, 2.5);
+
+    // Thin red accent bar below contact block
+    doc.setFillColor(...RED);
+    doc.rect(CONTENT_X, y, CONTENT_W, sc(1.2, 1), 'F');
+    y += sc(3, 2.5);
+
+    // ── Bill-info: To/Site on the left, Bill No./Date/Mob box on the right ──
+    const infoTop = y;
+    doc.setDrawColor(...SOFT_GRAY);
+    doc.setLineWidth(0.22);
+    doc.rect(SIDE_BOX_X, infoTop, SIDE_BOX_W, BILL_INFO_H);
+    doc.line(SIDE_BOX_X, infoTop + BILL_INFO_H / 3,     SIDE_BOX_X + SIDE_BOX_W, infoTop + BILL_INFO_H / 3);
+    doc.line(SIDE_BOX_X, infoTop + 2 * BILL_INFO_H / 3, SIDE_BOX_X + SIDE_BOX_W, infoTop + 2 * BILL_INFO_H / 3);
+
+    // Left: To / Client / Site
+    const lx = CONTENT_X + 2;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(F_TO_LABEL);
+    doc.setTextColor(...BLACK);
+    doc.text('To.', lx, infoTop + BILL_INFO_H * 0.23);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(F_CLIENT_NAME);
+    const clientDisplay = (bill.client_name || '').toUpperCase();
+    doc.text(clientDisplay, lx + 11, infoTop + BILL_INFO_H * 0.23);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(F_TO_LABEL);
+    doc.text(`Site Name :  ${bill.client_site_name || ''}`, lx, infoTop + BILL_INFO_H * 0.69);
+
+    // Right-box content (3 evenly-spaced rows inside the box)
+    const rbX  = SIDE_BOX_X + 3;
+    const rbVX = SIDE_BOX_X + SIDE_BOX_W - 3;
+    const rowH = BILL_INFO_H / 3;
+    const row1Y = infoTop + rowH * 0.65;
+    const row2Y = infoTop + rowH * 1.65;
+    const row3Y = infoTop + rowH * 2.65;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(F_BILLINFO_LBL);
+    doc.text('Bill No. :', rbX, row1Y);
+    doc.setFontSize(F_BILLINFO_VAL);
+    doc.text(`${bill.bill_no}`, rbVX, row1Y, { align: 'right' });
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(F_BILLINFO_LBL);
+    doc.text('Date :', rbX, row2Y);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(F_BILLINFO_VAL);
+    doc.text(fmtDate(bill.date) + '.', rbVX, row2Y, { align: 'right' });
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(F_BILLINFO_LBL);
+    doc.text('Mob. :', rbX, row3Y);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(F_BILLINFO_VAL);
+    doc.text(bill.client_mobile || '', rbVX, row3Y, { align: 'right' });
+
+    // No separator line above the table — the red column header row gives
+    // enough visual top edge, and the HEADER_BOTTOM gap keeps it from butting
+    // up against the bill-info box.
+  }
+
+  // Grand Total + Total/Advance/Balance + Rs.-in-Words + signature. Drawn ONCE,
+  // on whichever page the table ended on (or a fresh final page if it doesn't fit).
+  function drawBottomBlock(tableEndY) {
+    const { CONTENT_X, CONTENT_R, CONTENT_W, SIDE_BOX_W, SIDE_BOX_X } = geometry(doc);
+
+    const grandTotal = parseFloat(bill.grand_total || 0);
+
+    // ── Grand Total bar (red, full width) ──────────────────────────────────
+    doc.setFillColor(...RED);
+    doc.rect(CONTENT_X, tableEndY, CONTENT_W, GT_H, 'F');
+
+    doc.setTextColor(...WHITE);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(F_GRAND_TOTAL);
+    doc.text('GRAND TOTAL', CONTENT_X + 6, tableEndY + GT_H * 0.67);
+    doc.text(fmt(grandTotal) + ' /-', CONTENT_R - 5, tableEndY + GT_H * 0.67, { align: 'right' });
+
+    let footY = tableEndY + GT_H + sc(4, 3);
+
+    // ── Bottom footer — client box + Total/Advance/Balance box ─────────────
+    const footGap  = sc(4, 3);
+    const rightFBW = SIDE_BOX_W;
+    const rightFBX = SIDE_BOX_X;
+    const leftFBW  = rightFBX - footGap - CONTENT_X;
+    const fLx      = CONTENT_X + 4;
+
+    doc.setDrawColor(...SOFT_GRAY);
+    doc.setLineWidth(0.22);
+    doc.rect(CONTENT_X, footY, leftFBW, FOOT_BOX_H);
+
+    doc.setTextColor(...BLACK);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(F_FOOT_CLIENT);
+    doc.text(bill.client_name || '', fLx, footY + FOOT_BOX_H * 0.25);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(F_FOOT_ADDR);
+    if (bill.client_address) {
+      const addrLines = doc.splitTextToSize(bill.client_address, leftFBW - 8);
+      doc.text(addrLines.slice(0, 2), fLx, footY + FOOT_BOX_H * 0.50);
+    }
+    doc.text(`GST No.: ${bill.client_gst_no || '--'}`, fLx, footY + FOOT_BOX_H * 0.86);
+
+    // Right footer box
+    doc.rect(rightFBX, footY, rightFBW, FOOT_BOX_H);
+    doc.line(rightFBX, footY + FOOT_BOX_H / 3,     rightFBX + rightFBW, footY + FOOT_BOX_H / 3);
+    doc.line(rightFBX, footY + 2 * FOOT_BOX_H / 3, rightFBX + rightFBW, footY + 2 * FOOT_BOX_H / 3);
+
+    const rfX  = rightFBX + 3;
+    const rfVX = rightFBX + rightFBW - 3;
+
+    // Red "Total" row at the top of the right box
+    doc.setFillColor(...RED);
+    doc.rect(rightFBX, footY, rightFBW, FOOT_BOX_H / 3, 'F');
+    doc.setTextColor(...WHITE);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(F_TOTAL_HEAD);
+    doc.text('Total', rfX, footY + FOOT_BOX_H / 6 + sc(2, 1.5));
+    doc.text(fmt(grandTotal), rfVX, footY + FOOT_BOX_H / 6 + sc(2, 1.5), { align: 'right' });
+
+    doc.setTextColor(...BLACK);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(F_TOTAL_VAL);
+    const adv = parseFloat(bill.advance || 0);
+    doc.text('Advance', rfX, footY + FOOT_BOX_H / 2 + sc(1.5, 1));
+    doc.text(adv > 0 ? fmt(adv) : '--', rfVX, footY + FOOT_BOX_H / 2 + sc(1.5, 1), { align: 'right' });
+
+    const bal = parseFloat(bill.balance || 0);
+    doc.text('Balance', rfX, footY + 5 * FOOT_BOX_H / 6 + sc(1, 0.8));
+    doc.setFont('helvetica', 'bold');
+    doc.text(bal > 0 ? fmt(bal) : '--', rfVX, footY + 5 * FOOT_BOX_H / 6 + sc(1, 0.8), { align: 'right' });
+
+    footY += FOOT_BOX_H + sc(4, 3);
+
+    // ── Rs. In Words — highlighted band ────────────────────────────────────
+    doc.setFillColor(255, 248, 225);
+    doc.setDrawColor(...RED);
+    doc.setLineWidth(0.5);
+    doc.rect(CONTENT_X, footY, CONTENT_W, WORDS_BAND_H, 'FD');
+
+    const wordsY = footY + WORDS_BAND_H / 2 + sc(2, 1.6);
+    const wordsLabel = 'Rs. In Words :  ';
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(F_WORDS_LBL);
+    doc.setTextColor(...RED);
+    doc.text(wordsLabel, CONTENT_X + 5, wordsY);
+    const labelW = doc.getTextWidth(wordsLabel);
+
+    // Shrink the value slightly if very long, so it still fits on one line.
+    const valText = (bill.amount_in_words || '').toString();
+    const avail = CONTENT_W - 10 - labelW;
+    let valFont = F_WORDS_VAL;
+    doc.setFontSize(valFont);
+    while (valFont > 7 && doc.getTextWidth(valText) > avail) { valFont -= 0.5; doc.setFontSize(valFont); }
+    doc.setTextColor(...NAVY);
+    doc.text(valText, CONTENT_X + 5 + labelW, wordsY);
+
+    footY += WORDS_BAND_H + SIG_PAD_TOP;
+
+    // ── Signature — compact, right-aligned ─────────────────────────────────
+    const sigRight = CONTENT_R - 4;
+    const sigLeft  = CONTENT_R - sc(70, 56);
+    const sigMid   = (sigLeft + sigRight) / 2;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(F_SIG_NAME);
+    doc.setTextColor(...NAVY);
+    doc.text('For AA. NAGARE INFRA MACHINERY', sigRight, footY, { align: 'right' });
+
+    footY += SIG_LINE_GAP;
+    doc.setDrawColor(...SOFT_GRAY);
+    doc.setLineWidth(0.25);
+    doc.line(sigLeft, footY, sigRight, footY);
+
+    footY += SIG_LABEL_GAP;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(F_SIG_LABEL);
+    doc.setTextColor(100, 100, 100);
+    doc.text('Authorised Signatory', sigMid, footY, { align: 'center' });
+  }
 }
 
 // Red brand strip flush at the very left edge of the page, drawn on every page.
@@ -183,227 +434,4 @@ function drawPageStrip(doc) {
   const { H, STRIP_W } = geometry(doc);
   doc.setFillColor(...RED);
   doc.rect(0, 0, STRIP_W, H, 'F');
-}
-
-// Full company header (logo + address + mobile + GSTIN + email + bill-info
-// box). Drawn on every page so a long bill reads as one continuous document.
-function drawPageHeader(doc, bill, logo) {
-  const { W, LM, RM, CX, CONTENT_X, CONTENT_R, CONTENT_W, SIDE_BOX_W, SIDE_BOX_X } = geometry(doc);
-
-  // ── Cleaned AAN logo lockup ─────────────────────────────────────────────────
-  let y = 4;
-  const logoH = 32;
-  let logoW = logoH * logo.aspect;
-  const maxLogoW = W - CONTENT_X - RM - 70; // leave room for top-right GSTIN
-  if (logoW > maxLogoW) logoW = maxLogoW;
-  const logoX = CX - logoW / 2;
-  doc.addImage(logo.dataUrl, 'JPEG', logoX, y, logoW, logoH);
-  y += logoH + 4;
-
-  // ── Address + contact (3 centered lines; GSTIN rides on the Mob row) ─────
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9.5);
-  doc.setTextColor(...BLACK);
-  doc.text('Add.: A/p Ambadwet, Tal. Mulshi, Dist - Pune.', CX, y, { align: 'center' });
-  y += 4.5;
-  doc.text('Mob.: 7875396396 / 9921353533 / 9822111882', CX, y, { align: 'center' });
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(...NAVY);
-  doc.text(`GSTIN: ${COMPANY_GSTIN}`, CONTENT_R - 1, y, { align: 'right' });
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9.5);
-  doc.setTextColor(...BLACK);
-  y += 4.5;
-  doc.text('Email: aanagre.machinery@gmail.com', CX, y, { align: 'center' });
-  y += 3;
-
-  // Thin red accent bar below contact block
-  doc.setFillColor(...RED);
-  doc.rect(CONTENT_X, y, CONTENT_W, 1.2, 'F');
-  y += 3;
-
-  // ── Bill-info: To/Site on the left, Bill No./Date/Mob box on the right ────
-  const infoTop  = y;
-  const infoH    = 26;
-
-  doc.setDrawColor(...SOFT_GRAY);
-  doc.setLineWidth(0.22);
-  doc.rect(SIDE_BOX_X, infoTop, SIDE_BOX_W, infoH);
-  doc.line(SIDE_BOX_X, infoTop + infoH / 3,     SIDE_BOX_X + SIDE_BOX_W, infoTop + infoH / 3);
-  doc.line(SIDE_BOX_X, infoTop + 2 * infoH / 3, SIDE_BOX_X + SIDE_BOX_W, infoTop + 2 * infoH / 3);
-
-  // Left: To / Client / Site
-  const lx = CONTENT_X + 2;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(...BLACK);
-  doc.text('To.', lx, infoTop + 6);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  const clientDisplay = (bill.client_name || '').toUpperCase();
-  doc.text(clientDisplay, lx + 11, infoTop + 6);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.text(`Site Name :  ${bill.client_site_name || ''}`, lx, infoTop + 18);
-
-  // Right-box content
-  const rbX  = SIDE_BOX_X + 3;
-  const rbVX = SIDE_BOX_X + SIDE_BOX_W - 3;
-  const row1Y = infoTop + infoH / 6 + 2.5;
-  const row2Y = infoTop + infoH / 2 + 1.5;
-  const row3Y = infoTop + 5 * infoH / 6 + 0.5;
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9.5);
-  doc.text('Bill No. :', rbX, row1Y);
-  doc.setFontSize(10.5);
-  doc.text(`${bill.bill_no}`, rbVX, row1Y, { align: 'right' });
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9.5);
-  doc.text('Date :', rbX, row2Y);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10.5);
-  doc.text(fmtDate(bill.date) + '.', rbVX, row2Y, { align: 'right' });
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9.5);
-  doc.text('Mob. :', rbX, row3Y);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10.5);
-  doc.text(bill.client_mobile || '', rbVX, row3Y, { align: 'right' });
-
-  // No separator line above the table — the red column header row gives
-  // enough visual top edge, and the HEADER_BOTTOM gap keeps it from butting
-  // up against the bill-info box.
-}
-
-// Grand Total + Total/Advance/Balance + Rs.-in-Words + signature. Drawn ONCE,
-// on whichever page the table ended on (or a fresh final page if it doesn't fit).
-function drawBottomBlock(doc, bill, tableEndY) {
-  const { CONTENT_X, CONTENT_R, CONTENT_W, SIDE_BOX_W, SIDE_BOX_X } = geometry(doc);
-
-  const grandTotal = parseFloat(bill.grand_total || 0);
-
-  // ── Grand Total bar (red, full width) ────────────────────────────────────
-  const gtH = 12;
-  doc.setFillColor(...RED);
-  doc.rect(CONTENT_X, tableEndY, CONTENT_W, gtH, 'F');
-
-  doc.setTextColor(...WHITE);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
-  doc.text('GRAND TOTAL', CONTENT_X + 6, tableEndY + 8);
-  doc.text(fmt(grandTotal) + ' /-', CONTENT_R - 5, tableEndY + 8, { align: 'right' });
-
-  let footY = tableEndY + gtH + 4;
-
-  // ── Bottom footer — client box + Total/Advance/Balance box ────────────────
-  const footBoxH = 28;
-  const footGap  = 4;
-  const rightFBW = SIDE_BOX_W;
-  const rightFBX = SIDE_BOX_X;
-  const leftFBW  = rightFBX - footGap - CONTENT_X;
-  const fLx      = CONTENT_X + 4;
-
-  doc.setDrawColor(...SOFT_GRAY);
-  doc.setLineWidth(0.22);
-  doc.rect(CONTENT_X, footY, leftFBW, footBoxH);
-
-  doc.setTextColor(...BLACK);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text(bill.client_name || '', fLx, footY + 7);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  if (bill.client_address) {
-    const addrLines = doc.splitTextToSize(bill.client_address, leftFBW - 8);
-    doc.text(addrLines.slice(0, 2), fLx, footY + 14);
-  }
-  doc.text(`GST No.: ${bill.client_gst_no || '--'}`, fLx, footY + 24);
-
-  // Right footer box
-  doc.rect(rightFBX, footY, rightFBW, footBoxH);
-  doc.line(rightFBX, footY + footBoxH / 3,     rightFBX + rightFBW, footY + footBoxH / 3);
-  doc.line(rightFBX, footY + 2 * footBoxH / 3, rightFBX + rightFBW, footY + 2 * footBoxH / 3);
-
-  const rfX  = rightFBX + 3;
-  const rfVX = rightFBX + rightFBW - 3;
-
-  // Red "Total" row at the top of the right box
-  doc.setFillColor(...RED);
-  doc.rect(rightFBX, footY, rightFBW, footBoxH / 3, 'F');
-  doc.setTextColor(...WHITE);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.text('Total', rfX, footY + footBoxH / 6 + 2);
-  doc.text(fmt(grandTotal), rfVX, footY + footBoxH / 6 + 2, { align: 'right' });
-
-  doc.setTextColor(...BLACK);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(11);
-  const adv = parseFloat(bill.advance || 0);
-  doc.text('Advance', rfX, footY + footBoxH / 2 + 1.5);
-  doc.text(adv > 0 ? fmt(adv) : '--', rfVX, footY + footBoxH / 2 + 1.5, { align: 'right' });
-
-  const bal = parseFloat(bill.balance || 0);
-  doc.text('Balance', rfX, footY + 5 * footBoxH / 6 + 1);
-  doc.setFont('helvetica', 'bold');
-  doc.text(bal > 0 ? fmt(bal) : '--', rfVX, footY + 5 * footBoxH / 6 + 1, { align: 'right' });
-
-  footY += footBoxH + 4;
-
-  // ── Rs. In Words — highlighted band ──────────────────────────────────────
-  const wordsBandH = 12;
-  doc.setFillColor(255, 248, 225);
-  doc.setDrawColor(...RED);
-  doc.setLineWidth(0.5);
-  doc.rect(CONTENT_X, footY, CONTENT_W, wordsBandH, 'FD');
-
-  const wordsY = footY + wordsBandH / 2 + 2;
-  const wordsLabel = 'Rs. In Words :  ';
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(...RED);
-  doc.text(wordsLabel, CONTENT_X + 5, wordsY);
-  const labelW = doc.getTextWidth(wordsLabel);
-
-  // Shrink the value slightly if very long, so it still fits on one line.
-  const valText = (bill.amount_in_words || '').toString();
-  const avail = CONTENT_W - 10 - labelW;
-  let valFont = 11;
-  doc.setFontSize(valFont);
-  while (valFont > 8 && doc.getTextWidth(valText) > avail) { valFont -= 0.5; doc.setFontSize(valFont); }
-  doc.setTextColor(...NAVY);
-  doc.text(valText, CONTENT_X + 5 + labelW, wordsY);
-
-  footY += wordsBandH + 10;          // extra padding below the Rs.-in-Words band
-
-  // ── Signature — compact, right-aligned ─────────────────────────────────
-  // "For AA. NAGARE …" right-aligned at the content edge, a short signing
-  // line below, and "Authorised Signatory" centered under the line. Smaller
-  // fonts + tighter vertical rhythm so the block doesn't look "too big".
-  const sigRight = CONTENT_R - 4;
-  const sigLeft  = CONTENT_R - 70;    // 66 mm wide signing line (was 86 mm)
-  const sigMid   = (sigLeft + sigRight) / 2;
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(...NAVY);
-  doc.text('For AA. NAGARE INFRA MACHINERY', sigRight, footY, { align: 'right' });
-
-  footY += 12;
-  doc.setDrawColor(...SOFT_GRAY);
-  doc.setLineWidth(0.25);
-  doc.line(sigLeft, footY, sigRight, footY);
-
-  footY += 4;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(100, 100, 100);
-  doc.text('Authorised Signatory', sigMid, footY, { align: 'center' });
 }
