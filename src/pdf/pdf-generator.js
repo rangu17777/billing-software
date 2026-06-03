@@ -8,11 +8,13 @@ export { getCleanLogo };
 // Company GSTIN — printed on every bill by default (also shown on the dashboard).
 const COMPANY_GSTIN = '27BISPN4599L1Z3';
 
-const RED   = [211, 47, 47];
-const NAVY  = [26, 35, 126];
-const BLACK = [33, 33, 33];
-const WHITE = [255, 255, 255];
-const LGRAY = [245, 245, 245];
+const RED       = [211, 47, 47];
+const NAVY      = [26, 35, 126];
+const BLACK     = [33, 33, 33];
+const WHITE     = [255, 255, 255];
+const LGRAY     = [245, 245, 245];
+const SOFT_GRAY = [130, 130, 130];   // border colour for info / footer boxes
+const TABLE_GRAY = [210, 210, 210];  // body-cell grid lines (lighter, no "collapsing")
 
 const fmt = (n) => parseFloat(n || 0).toLocaleString('en-IN');
 const fmtDate = (s) => {
@@ -135,8 +137,10 @@ export async function buildBillPDFDoc(bill, lineItems) {
     styles: {
       fontSize: 9,
       cellPadding: { top: 2.8, bottom: 2.8, left: 3, right: 3 },
-      lineColor: [180, 180, 180],
-      lineWidth: 0.2,
+      // Lighter grid + thinner stroke so the shared cell edges in autoTable's
+      // grid theme don't stack into heavy-looking "collapsed" vertical lines.
+      lineColor: TABLE_GRAY,
+      lineWidth: 0.12,
       textColor: BLACK,
       font: 'helvetica',
       overflow: 'linebreak'
@@ -221,8 +225,8 @@ function drawPageHeader(doc, bill, logo) {
   const infoTop  = y;
   const infoH    = 26;
 
-  doc.setDrawColor(...BLACK);
-  doc.setLineWidth(0.3);
+  doc.setDrawColor(...SOFT_GRAY);
+  doc.setLineWidth(0.22);
   doc.rect(SIDE_BOX_X, infoTop, SIDE_BOX_W, infoH);
   doc.line(SIDE_BOX_X, infoTop + infoH / 3,     SIDE_BOX_X + SIDE_BOX_W, infoTop + infoH / 3);
   doc.line(SIDE_BOX_X, infoTop + 2 * infoH / 3, SIDE_BOX_X + SIDE_BOX_W, infoTop + 2 * infoH / 3);
@@ -273,8 +277,8 @@ function drawPageHeader(doc, bill, logo) {
   y = infoTop + infoH + 1;
 
   // Separator line above the table
-  doc.setDrawColor(...BLACK);
-  doc.setLineWidth(0.3);
+  doc.setDrawColor(...SOFT_GRAY);
+  doc.setLineWidth(0.22);
   doc.line(CONTENT_X, y, CONTENT_R, y);
 }
 
@@ -306,8 +310,8 @@ function drawBottomBlock(doc, bill, tableEndY) {
   const leftFBW  = rightFBX - footGap - CONTENT_X;
   const fLx      = CONTENT_X + 4;
 
-  doc.setDrawColor(...BLACK);
-  doc.setLineWidth(0.3);
+  doc.setDrawColor(...SOFT_GRAY);
+  doc.setLineWidth(0.22);
   doc.rect(CONTENT_X, footY, leftFBW, footBoxH);
 
   doc.setTextColor(...BLACK);
@@ -381,19 +385,25 @@ function drawBottomBlock(doc, bill, tableEndY) {
   footY += wordsBandH + 6;
 
   // ── Signature ───────────────────────────────────────────────────────────
+  // Right-aligned block with a wider signing line and the "Authorised
+  // Signatory" label centered UNDER the line for a balanced, formal look.
+  const sigRight = CONTENT_R - 4;
+  const sigLeft  = CONTENT_R - 90;     // 86 mm wide signing area (was ~56 mm)
+  const sigMid   = (sigLeft + sigRight) / 2;
+
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(...NAVY);
-  doc.text('For AA. NAGARE INFRA MACHINERY', CONTENT_R - 4, footY, { align: 'right' });
+  doc.text('For AA. NAGARE INFRA MACHINERY', sigMid, footY, { align: 'center' });
 
-  footY += 14;
-  doc.setDrawColor(...BLACK);
-  doc.setLineWidth(0.3);
-  doc.line(SIDE_BOX_X, footY, CONTENT_R - 4, footY);
+  footY += 16;
+  doc.setDrawColor(...SOFT_GRAY);
+  doc.setLineWidth(0.25);
+  doc.line(sigLeft, footY, sigRight, footY);
 
   footY += 5;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(100, 100, 100);
-  doc.text('Authorised Signatory', CONTENT_R - 4, footY, { align: 'right' });
+  doc.text('Authorised Signatory', sigMid, footY, { align: 'center' });
 }
