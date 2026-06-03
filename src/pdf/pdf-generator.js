@@ -42,7 +42,9 @@ function geometry(doc) {
 }
 
 // Where the line-items table starts on every page (just below the full header).
-const HEADER_BOTTOM  = 80;
+// 86 leaves a clean ~5 mm gap below the bill-info box (which ends at y ≈ 81)
+// — without this the red column header was butting up against the Mob row.
+const HEADER_BOTTOM  = 86;
 // Space the bottom block (grand total + footer + words + signature) needs.
 const BOTTOM_BLOCK_H = 90;
 // Bottom-of-page safety clearance.
@@ -274,12 +276,9 @@ function drawPageHeader(doc, bill, logo) {
   doc.setFontSize(10.5);
   doc.text(bill.client_mobile || '', rbVX, row3Y, { align: 'right' });
 
-  y = infoTop + infoH + 1;
-
-  // Separator line above the table
-  doc.setDrawColor(...SOFT_GRAY);
-  doc.setLineWidth(0.22);
-  doc.line(CONTENT_X, y, CONTENT_R, y);
+  // No separator line above the table — the red column header row gives
+  // enough visual top edge, and the HEADER_BOTTOM gap keeps it from butting
+  // up against the bill-info box.
 }
 
 // Grand Total + Total/Advance/Balance + Rs.-in-Words + signature. Drawn ONCE,
@@ -382,28 +381,29 @@ function drawBottomBlock(doc, bill, tableEndY) {
   doc.setTextColor(...NAVY);
   doc.text(valText, CONTENT_X + 5 + labelW, wordsY);
 
-  footY += wordsBandH + 6;
+  footY += wordsBandH + 10;          // extra padding below the Rs.-in-Words band
 
-  // ── Signature ───────────────────────────────────────────────────────────
-  // Right-aligned block with a wider signing line and the "Authorised
-  // Signatory" label centered UNDER the line for a balanced, formal look.
+  // ── Signature — compact, right-aligned ─────────────────────────────────
+  // "For AA. NAGARE …" right-aligned at the content edge, a short signing
+  // line below, and "Authorised Signatory" centered under the line. Smaller
+  // fonts + tighter vertical rhythm so the block doesn't look "too big".
   const sigRight = CONTENT_R - 4;
-  const sigLeft  = CONTENT_R - 90;     // 86 mm wide signing area (was ~56 mm)
+  const sigLeft  = CONTENT_R - 70;    // 66 mm wide signing line (was 86 mm)
   const sigMid   = (sigLeft + sigRight) / 2;
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
+  doc.setFontSize(10);
   doc.setTextColor(...NAVY);
-  doc.text('For AA. NAGARE INFRA MACHINERY', sigMid, footY, { align: 'center' });
+  doc.text('For AA. NAGARE INFRA MACHINERY', sigRight, footY, { align: 'right' });
 
-  footY += 16;
+  footY += 12;
   doc.setDrawColor(...SOFT_GRAY);
   doc.setLineWidth(0.25);
   doc.line(sigLeft, footY, sigRight, footY);
 
-  footY += 5;
+  footY += 4;
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   doc.setTextColor(100, 100, 100);
   doc.text('Authorised Signatory', sigMid, footY, { align: 'center' });
 }
