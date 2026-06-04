@@ -25,6 +25,7 @@ let billData = {
   client_address: '',
   client_gst_no: '',
   advance: 0,
+  previous_due: 0,
   sgstRate: 9,
   cgstRate: 9,
   sgstManual: false,
@@ -66,7 +67,7 @@ export async function render(container, params = {}) {
     date: new Date().toISOString().split('T')[0],
     client_id: '', client_name: '', client_site_name: '',
     client_mobile: '', client_address: '', client_gst_no: '',
-    advance: 0, sgstRate: 9, cgstRate: 9,
+    advance: 0, previous_due: 0, sgstRate: 9, cgstRate: 9,
     sgstManual: false, cgstManual: false,
     subtotal: 0, sgst: 0, cgst: 0,
     grand_total: 0, balance: 0, amount_in_words: 'Zero Only',
@@ -143,6 +144,7 @@ async function loadBillForEdit(billId) {
   billData.client_address   = bill.client_address || '';
   billData.client_gst_no    = bill.client_gst_no || '';
   billData.advance          = parseFloat(bill.advance) || 0;
+  billData.previous_due     = parseFloat(bill.previous_due) || 0;
   billData.subtotal         = parseFloat(bill.subtotal) || 0;
   billData.sgst             = parseFloat(bill.sgst) || 0;
   billData.cgst             = parseFloat(bill.cgst) || 0;
@@ -358,10 +360,14 @@ function renderForm(container, showDraftPrompt = false, draft = null) {
         <!-- Section 3: Summary & Payment -->
         <p class="bc-section-label">Summary &amp; Payment</p>
         <div class="card bc-payment-card mb-3">
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--space-3)">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:var(--space-3)">
             <div class="form-group">
               <label for="bill-advance">Advance Received (₹)</label>
               <input type="number" id="bill-advance" value="${billData.advance}" min="0" placeholder="0" />
+            </div>
+            <div class="form-group">
+              <label for="bill-previous-due">Previous Due (₹)</label>
+              <input type="number" id="bill-previous-due" value="${billData.previous_due}" min="0" placeholder="0" />
             </div>
             <div class="form-group">
               <label>Balance Due (₹)</label>
@@ -683,6 +689,12 @@ function attachFormEvents(container) {
     updateTotalDisplays(container);
   });
 
+  // ── PREVIOUS DUE ──
+  container.querySelector('#bill-previous-due').addEventListener('input', (e) => {
+    billData.previous_due = parseFloat(e.target.value) || 0;
+    // Informational only — no effect on balance calculation
+  });
+
   // ── ADD ROW ──
   container.querySelector('#add-row-btn').addEventListener('click', () => {
     const last = billData.lineItems[billData.lineItems.length - 1];
@@ -715,7 +727,7 @@ function attachFormEvents(container) {
           date: new Date().toISOString().split('T')[0],
           client_id: '', client_name: '', client_site_name: '',
           client_mobile: '', client_address: '', client_gst_no: '',
-          advance: 0, sgstRate: 9, cgstRate: 9,
+          advance: 0, previous_due: 0, sgstRate: 9, cgstRate: 9,
           sgstManual: false, cgstManual: false,
           subtotal: 0, sgst: 0, cgst: 0,
           grand_total: 0, balance: 0, amount_in_words: 'Zero Only',
@@ -1500,7 +1512,7 @@ function showBillPreviewModal(container) {
                 Mob.: 7875396396 / 9921353533 / 9822111882
                 <span class="bpm-mob-gstin">GSTIN: 27BISPN4599L1Z3</span>
               </div>
-              <div class="bpm-company-addr">Email: aanagre.machinery@gmail.com</div>
+              <div class="bpm-company-addr">Email: aanagare.machinery@gmail.com</div>
             </div>
 
             <div class="bpm-red-rule"></div>
@@ -1577,6 +1589,10 @@ function showBillPreviewModal(container) {
                   <span>Balance</span>
                   <span>${billData.balance > 0 ? '₹' + fmt(billData.balance) : '—'}</span>
                 </div>
+                <div class="bpm-fa-row">
+                  <span>Prev. Due</span>
+                  <span>${(billData.previous_due || 0) > 0 ? '₹' + fmt(billData.previous_due) : '—'}</span>
+                </div>
               </div>
             </div>
 
@@ -1637,6 +1653,7 @@ async function doActualSave(container, mc) {
     cgst: billData.cgst,
     grand_total: billData.grand_total,
     advance: billData.advance,
+    previous_due: billData.previous_due || 0,
     balance: billData.balance,
     amount_in_words: billData.amount_in_words
   };
