@@ -442,12 +442,12 @@ export async function buildBillPDFDoc(bill, lineItems) {
       doc.text(prevDue > 0 ? fmt(prevDue) : '--', rfVX, footY + rowH4 * 2.65, { align: 'right' });
     }
 
-    // Row 4 — Balance (bold + navy — final amount owed, most prominent)
-    doc.setFillColor(240, 240, 250);   // very subtle blue-grey tint
+    // Row 4 — Balance (full navy fill, white bold text — final amount owed)
+    doc.setFillColor(...NAVY);
     doc.rect(rightFBX, footY + rowH4 * 3, rightFBW, rowH4, 'F');
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(F_TOTAL_HEAD);     // same size as Total row for emphasis
-    doc.setTextColor(...NAVY);
+    doc.setFontSize(F_TOTAL_HEAD);
+    doc.setTextColor(...WHITE);
     doc.text('Balance', rfX, footY + rowH4 * 3.65);
     if (isLastPage) {
       const bal = parseFloat(bill.balance || 0);
