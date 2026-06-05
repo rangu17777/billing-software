@@ -58,19 +58,21 @@ export async function getBillPDFBlob(bill, lineItems) {
 // FIXED LAYOUT — no adaptive density scaling.
 // Every bill uses the same fixed sizes regardless of item count.
 //
-// PAGINATION MODEL:
-//   • Items are grouped into pages of exactly ITEMS_PER_PAGE = 15 rows each.
-//   • Every page gets the full company header (logo + address + bill-info box).
-//   • Rows not filled by real items are rendered as blank rows so every page
-//     looks like a complete 15-row A4 sheet.
-//   • Tax rows (Subtotal / SGST / CGST) appear ONLY on the last page.
-//   • Grand Total bar + footer block + signature appear ONLY on the last page.
+// PAGINATION MODEL (two modes):
+//   Single-page (≤ 15 items):
+//     Pad to exactly 15 blank rows for the "complete billing pad" look.
+//     Tax rows + footer all on the same page.
+//   Multi-page (> 15 items):
+//     All real items are passed to a single autoTable call. margin.bottom
+//     reserves BOTTOM_BLOCK_H so autoTable fills each page to its natural
+//     capacity before breaking — no wasted blank-row whitespace on any page.
+//     Tax rows + footer always land on the final page.
 //
 export async function buildBillPDFDoc(bill, lineItems) {
   const logo = await getCleanLogo();
 
   // ── Fixed layout constants (mm) ───────────────────────────────────────────
-  const ITEMS_PER_PAGE = 15;  // real items per page chunk
+  const ITEMS_PER_PAGE = 15;   // max rows for a single-page bill
 
   // Header (top of page → where the table starts)
   // Carefully sized so logo(32) + address(3 lines) + bill-info(24) + gaps = 76mm
@@ -91,10 +93,10 @@ export async function buildBillPDFDoc(bill, lineItems) {
   const SIG_LINE_GAP    = 10;   // gap from text to signature line
   const SIG_LABEL_GAP   = 3;    // gap from line to "Authorised Signatory" text
 
-  // Total height consumed by the bottom block (used for overflow check)
-  // GT + gap + footer + gap + words + sig
+  // Total height consumed by the bottom block
+  // GT + gap + footer + gap + words + sig ≈ 72 mm
   const BOTTOM_BLOCK_H  = GT_H + 3 + FOOT_BOX_H + 3 + WORDS_BAND_H
-                        + SIG_PAD_TOP + SIG_LINE_GAP + SIG_LABEL_GAP; // ≈ 72 mm
+                        + SIG_PAD_TOP + SIG_LINE_GAP + SIG_LABEL_GAP;
 
   // ── Font sizes (pt) — all fixed ───────────────────────────────────────────
   const F_ADDRESS      = 9.5;
@@ -127,49 +129,44 @@ export async function buildBillPDFDoc(bill, lineItems) {
   const sgstRate = subtotal > 0 ? +(sgstAmt * 100 / subtotal).toFixed(2) : 9;
   const cgstRate = subtotal > 0 ? +(cgstAmt * 100 / subtotal).toFixed(2) : 9;
 
-  // Tax summary rows — appended only on the last page's table
+  // Tax summary rows — always appended at the end of the table body
   const taxRows = [
     [{ content: 'Subtotal', colSpan: 6, styles: { halign: 'right' } }, '',             fmt(subtotal)],
     [{ content: 'SGST',     colSpan: 6, styles: { halign: 'right' } }, `${sgstRate}%`, fmt(sgstAmt)],
     [{ content: 'CGST',     colSpan: 6, styles: { halign: 'right' } }, `${cgstRate}%`, fmt(cgstAmt)],
   ];
 
-  // ── Chunk items into pages of ITEMS_PER_PAGE ──────────────────────────────
-  // Always have at least one chunk (even if no items → 1 page of 15 blank rows)
-  const allItems = lineItems.length > 0 ? lineItems : [];
-  const totalPages = Math.max(1, Math.ceil(allItems.length / ITEMS_PER_PAGE));
-  const chunks = [];
-  for (let i = 0; i < totalPages; i++) {
-    chunks.push(allItems.slice(i * ITEMS_PER_PAGE, (i + 1) * ITEMS_PER_PAGE));
-  }
+  // ── Build table data ───────────────────────────────────────────────────────
+  const allItems     = lineItems.length > 0 ? lineItems : [];
+  const isSinglePage = allItems.length <= ITEMS_PER_PAGE;
 
-  // ── Render each page ──────────────────────────────────────────────────────
-  for (let pageIdx = 0; pageIdx < chunks.length; pageIdx++) {
-    const isLastPage = pageIdx === chunks.length - 1;
-    const chunk = chunks[pageIdx];
+  const tableData = [];
 
-    // ── Padding strategy (Option B) ────────────────────────────────────────
-    // • Single-page bill (1 chunk): pad to 15 blank rows for the "complete
-    //   billing pad" look — even if only 1 item is entered.
-    // • Multi-page bill (2+ chunks): NO blank row padding on ANY page.
-    //   Real items are shown as-is; the footer follows the last real item
-    //   directly on the last page, eliminating the empty-grid whitespace.
-    const isSinglePage = chunks.length === 1;
-    const paddedChunk = [...chunk];
-    if (isSinglePage) {
-      while (paddedChunk.length < ITEMS_PER_PAGE) {
-        paddedChunk.push(null); // null → blank row
-      }
-    }
-    // Multi-page: paddedChunk == chunk (no extra nulls added on any page)
-
-    // Build the table body
-    const tableData = paddedChunk.map((item) => {
+  if (isSinglePage) {
+    // Pad to exactly 15 rows for the "complete billing pad" template look
+    const padded = [...allItems];
+    while (padded.length < ITEMS_PER_PAGE) padded.push(null);
+    padded.forEach(item => {
       if (!item) {
-        // Blank padding row — all cells empty, same height as real rows
-        return ['', '', '', '', '', '', '', ''];
+        tableData.push(['', '', '', '', '', '', '', '']);
+      } else {
+        tableData.push([
+          item.sr_no,
+          item.date || '',
+          item.challan_no || '--',
+          item.description || '',
+          item.vehicle_no || '',
+          item.qty_unit || '',
+          fmt(item.rate),
+          fmt(item.amount)
+        ]);
       }
-      return [
+    });
+  } else {
+    // Multi-page: pass all real items — no blank-row padding at all.
+    // autoTable will naturally fill each page to capacity before breaking.
+    allItems.forEach(item => {
+      tableData.push([
         item.sr_no,
         item.date || '',
         item.challan_no || '--',
@@ -178,90 +175,96 @@ export async function buildBillPDFDoc(bill, lineItems) {
         item.qty_unit || '',
         fmt(item.rate),
         fmt(item.amount)
-      ];
-    });
-
-    // Append tax rows on the last page only
-    if (isLastPage) {
-      tableData.push(...taxRows);
-    }
-
-    // Add a new page for every chunk after the first.
-    // didDrawPage will fire and draw the header on it.
-    if (pageIdx > 0) {
-      doc.addPage();
-    }
-
-    // taxStartIdx: row index where tax rows begin in tableData.
-    // On the last page this is chunk.length (real items count, no padding);
-    // on non-last pages there are no tax rows so the value is irrelevant.
-    const taxStartIdx = chunk.length;
-
-    doc.autoTable({
-      startY: HEADER_BOTTOM,
-      margin: { top: HEADER_BOTTOM, left: CONTENT_X, right: RM, bottom: BOTTOM_SAFETY },
-      showHead: 'everyPage',
-      head: [['Sr.\nNo.', 'Date', 'Challan\nNo.', 'Description', 'Vehicle\nNo.', 'Qty./Unit', 'Rate', 'Amount']],
-      body: tableData,
-      theme: 'grid',
-      headStyles: {
-        fillColor: RED,
-        textColor: WHITE,
-        fontSize: F_TABLE_HEAD,
-        fontStyle: 'bold',
-        halign: 'center',
-        valign: 'middle',
-        lineColor: WHITE,
-        lineWidth: 0.3,
-        minCellHeight: TABLE_HEAD_MIN
-      },
-      // Column widths sum to CONTENT_W (199 mm).
-      columnStyles: {
-        0: { cellWidth: 12, halign: 'center' },   // Sr. No.
-        1: { cellWidth: 17, halign: 'center' },   // Date
-        2: { cellWidth: 20, halign: 'center' },   // Challan No.
-        3: { cellWidth: 52, halign: 'left'   },   // Description
-        4: { cellWidth: 23, halign: 'center' },   // Vehicle No.
-        5: { cellWidth: 25, halign: 'center' },   // Qty./Unit
-        6: { cellWidth: 22, halign: 'right'  },   // Rate
-        7: { cellWidth: 28, halign: 'right'  }    // Amount
-      },
-      styles: {
-        fontSize: F_TABLE_BODY,
-        fontStyle: 'bold',
-        cellPadding: { top: TABLE_PAD_V, bottom: TABLE_PAD_V, left: 3, right: 3 },
-        lineColor: TABLE_GRAY,
-        lineWidth: 0.12,
-        textColor: BLACK,
-        font: 'helvetica',
-        overflow: 'linebreak',
-        minCellHeight: TABLE_ROW_MIN
-      },
-      alternateRowStyles: { fillColor: LGRAY },
-      didParseCell: (data) => {
-        // Style tax rows (Subtotal / SGST / CGST) on the last page
-        if (isLastPage && data.section === 'body' && data.row.index >= taxStartIdx) {
-          data.cell.styles.fillColor  = [255, 248, 225];
-          data.cell.styles.fontStyle  = 'bold';
-          data.cell.styles.textColor  = NAVY;
-          data.cell.styles.fontSize   = F_TABLE_TAX;
-          data.cell.styles.minCellHeight = 8;
-        }
-        // Blank padding rows (single-page bills only): near-invisible grid lines
-        if (isSinglePage && data.section === 'body' && data.row.index >= chunk.length && data.row.index < ITEMS_PER_PAGE) {
-          data.cell.styles.fontStyle = 'normal';
-          data.cell.styles.textColor = [200, 200, 200]; // near-invisible, just the grid
-        }
-      },
-      // Full company header is drawn on every page autoTable touches.
-      didDrawPage: () => {
-        drawPageStrip(doc);
-        drawPageHeader();
-      }
+      ]);
     });
   }
 
-  // ── Bottom block — only after the last page's table ───────────────────────
+  // Tax rows always come last in the table body
+  tableData.push(...taxRows);
+
+  // Row index where tax styling starts in didParseCell
+  const taxStartIdx = isSinglePage ? ITEMS_PER_PAGE : allItems.length;
+
+  // ── Single autoTable call — natural pagination ────────────────────────────
+  // Key: margin.bottom = BOTTOM_BLOCK_H + BOTTOM_SAFETY tells autoTable to
+  // reserve ~77 mm for the footer on every page. This causes autoTable to
+  // break to the next page only when that reserved space would be breached —
+  // filling each page to its maximum natural capacity with real rows.
+  // Non-last pages have no empty grid rows, no whitespace.
+  // The reserved footer area on the final page is filled by drawBottomBlock().
+  doc.autoTable({
+    startY: HEADER_BOTTOM,
+    margin: {
+      top:    HEADER_BOTTOM,
+      left:   CONTENT_X,
+      right:  RM,
+      bottom: BOTTOM_BLOCK_H + BOTTOM_SAFETY   // reserves ≈ 77 mm for footer
+    },
+    showHead: 'everyPage',
+    head: [['Sr.\nNo.', 'Date', 'Challan\nNo.', 'Description', 'Vehicle\nNo.', 'Qty./Unit', 'Rate', 'Amount']],
+    body: tableData,
+    theme: 'grid',
+    headStyles: {
+      fillColor: RED,
+      textColor: WHITE,
+      fontSize: F_TABLE_HEAD,
+      fontStyle: 'bold',
+      halign: 'center',
+      valign: 'middle',
+      lineColor: WHITE,
+      lineWidth: 0.3,
+      minCellHeight: TABLE_HEAD_MIN
+    },
+    // Column widths sum to CONTENT_W (199 mm).
+    columnStyles: {
+      0: { cellWidth: 12, halign: 'center' },   // Sr. No.
+      1: { cellWidth: 17, halign: 'center' },   // Date
+      2: { cellWidth: 20, halign: 'center' },   // Challan No.
+      3: { cellWidth: 52, halign: 'left'   },   // Description
+      4: { cellWidth: 23, halign: 'center' },   // Vehicle No.
+      5: { cellWidth: 25, halign: 'center' },   // Qty./Unit
+      6: { cellWidth: 22, halign: 'right'  },   // Rate
+      7: { cellWidth: 28, halign: 'right'  }    // Amount
+    },
+    styles: {
+      fontSize: F_TABLE_BODY,
+      fontStyle: 'bold',
+      cellPadding: { top: TABLE_PAD_V, bottom: TABLE_PAD_V, left: 3, right: 3 },
+      lineColor: TABLE_GRAY,
+      lineWidth: 0.12,
+      textColor: BLACK,
+      font: 'helvetica',
+      overflow: 'linebreak',
+      minCellHeight: TABLE_ROW_MIN
+    },
+    alternateRowStyles: { fillColor: LGRAY },
+    didParseCell: (data) => {
+      // Style tax rows (Subtotal / SGST / CGST)
+      if (data.section === 'body' && data.row.index >= taxStartIdx) {
+        data.cell.styles.fillColor     = [255, 248, 225];
+        data.cell.styles.fontStyle     = 'bold';
+        data.cell.styles.textColor     = NAVY;
+        data.cell.styles.fontSize      = F_TABLE_TAX;
+        data.cell.styles.minCellHeight = 8;
+      }
+      // Blank padding rows (single-page bills only): near-invisible grid lines
+      if (isSinglePage && data.section === 'body'
+          && data.row.index >= allItems.length
+          && data.row.index < ITEMS_PER_PAGE) {
+        data.cell.styles.fontStyle = 'normal';
+        data.cell.styles.textColor = [200, 200, 200]; // near-invisible, just the grid
+      }
+    },
+    // Full company header + red strip drawn on every page autoTable generates.
+    didDrawPage: () => {
+      drawPageStrip(doc);
+      drawPageHeader();
+    }
+  });
+
+  // ── Bottom block — drawn right after the table on the final page ──────────
+  // margin.bottom already reserved BOTTOM_BLOCK_H space so finalY has room.
+  // The overflow guard handles any edge cases (e.g. tax rows pushing finalY).
   let finalY = doc.lastAutoTable.finalY;
 
   if (finalY + BOTTOM_BLOCK_H > PAGE_BOTTOM) {
