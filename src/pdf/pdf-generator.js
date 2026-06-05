@@ -403,7 +403,7 @@ export async function buildBillPDFDoc(bill, lineItems) {
     }
     doc.text(`GST No.: ${bill.client_gst_no || '--'}`, fLx, footY + FOOT_BOX_H * 0.85);
 
-    // Right box — 4 rows: Total / Advance / Balance / Prev. Due
+    // Right box — 4 rows: Total / Advance / Prev. Due / Balance
     doc.rect(rightFBX, footY, rightFBW, FOOT_BOX_H);
     doc.line(rightFBX, footY + FOOT_BOX_H / 4,     rightFBX + rightFBW, footY + FOOT_BOX_H / 4);
     doc.line(rightFBX, footY + FOOT_BOX_H / 2,     rightFBX + rightFBW, footY + FOOT_BOX_H / 2);
@@ -435,20 +435,23 @@ export async function buildBillPDFDoc(bill, lineItems) {
       doc.text(adv > 0 ? fmt(adv) : '--', rfVX, footY + rowH4 * 1.65, { align: 'right' });
     }
 
-    // Row 3 — Balance
-    doc.text('Balance', rfX, footY + rowH4 * 2.65);
-    if (isLastPage) {
-      const bal = parseFloat(bill.balance || 0);
-      doc.setFont('helvetica', 'bold');
-      doc.text(bal > 0 ? fmt(bal) : '--', rfVX, footY + rowH4 * 2.65, { align: 'right' });
-    }
-
-    // Row 4 — Prev. Due
-    doc.setFont('helvetica', 'normal');
-    doc.text('Prev. Due', rfX, footY + rowH4 * 3.65);
+    // Row 3 — Prev. Due
+    doc.text('Prev. Due', rfX, footY + rowH4 * 2.65);
     if (isLastPage) {
       const prevDue = parseFloat(bill.previous_due || 0);
-      doc.text(prevDue > 0 ? fmt(prevDue) : '--', rfVX, footY + rowH4 * 3.65, { align: 'right' });
+      doc.text(prevDue > 0 ? fmt(prevDue) : '--', rfVX, footY + rowH4 * 2.65, { align: 'right' });
+    }
+
+    // Row 4 — Balance (bold + navy — final amount owed, most prominent)
+    doc.setFillColor(240, 240, 250);   // very subtle blue-grey tint
+    doc.rect(rightFBX, footY + rowH4 * 3, rightFBW, rowH4, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(F_TOTAL_HEAD);     // same size as Total row for emphasis
+    doc.setTextColor(...NAVY);
+    doc.text('Balance', rfX, footY + rowH4 * 3.65);
+    if (isLastPage) {
+      const bal = parseFloat(bill.balance || 0);
+      doc.text(bal > 0 ? fmt(bal) : '--', rfVX, footY + rowH4 * 3.65, { align: 'right' });
     }
 
     footY += FOOT_BOX_H + 3;
