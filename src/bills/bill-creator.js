@@ -1585,13 +1585,13 @@ function showBillPreviewModal(container) {
                   <span>Advance</span>
                   <span>${billData.advance > 0 ? '₹' + fmt(billData.advance) : '—'}</span>
                 </div>
-                <div class="bpm-fa-row bpm-fa-balance">
-                  <span>Balance</span>
-                  <span>${billData.balance > 0 ? '₹' + fmt(billData.balance) : '—'}</span>
-                </div>
                 <div class="bpm-fa-row">
                   <span>Prev. Due</span>
                   <span>${(billData.previous_due || 0) > 0 ? '₹' + fmt(billData.previous_due) : '—'}</span>
+                </div>
+                <div class="bpm-fa-row bpm-fa-balance">
+                  <span>Balance</span>
+                  <span>${billData.balance > 0 ? '₹' + fmt(billData.balance) : '—'}</span>
                 </div>
               </div>
             </div>
