@@ -70,9 +70,7 @@ export async function buildBillPDFDoc(bill, lineItems) {
   const logo = await getCleanLogo();
 
   // ── Fixed layout constants (mm) ───────────────────────────────────────────
-  const ITEMS_PER_PAGE      = 15;  // real items per chunk (non-last pages)
-  const ROWS_NON_LAST_PAGE  = 28;  // blank-padded rows on non-last pages (fills A4 height)
-  //                                   last page is NOT padded → footer follows real items directly
+  const ITEMS_PER_PAGE = 15;  // real items per page chunk
 
   // Header (top of page → where the table starts)
   // Carefully sized so logo(32) + address(3 lines) + bill-info(24) + gaps = 76mm
@@ -151,18 +149,19 @@ export async function buildBillPDFDoc(bill, lineItems) {
     const chunk = chunks[pageIdx];
 
     // ── Padding strategy (Option B) ────────────────────────────────────────
-    // • Non-last pages  → pad to ROWS_NON_LAST_PAGE (28) so the grid fills the
-    //   full A4 height with no footer, giving a "complete billing pad" look.
-    // • Last page       → NO blank row padding; the footer (Grand Total bar,
-    //   foot boxes, signature) follows the real items directly, eliminating
-    //   the big whitespace gap that appeared in the old 15-row padded layout.
+    // • Single-page bill (1 chunk): pad to 15 blank rows for the "complete
+    //   billing pad" look — even if only 1 item is entered.
+    // • Multi-page bill (2+ chunks): NO blank row padding on ANY page.
+    //   Real items are shown as-is; the footer follows the last real item
+    //   directly on the last page, eliminating the empty-grid whitespace.
+    const isSinglePage = chunks.length === 1;
     const paddedChunk = [...chunk];
-    if (!isLastPage) {
-      while (paddedChunk.length < ROWS_NON_LAST_PAGE) {
+    if (isSinglePage) {
+      while (paddedChunk.length < ITEMS_PER_PAGE) {
         paddedChunk.push(null); // null → blank row
       }
     }
-    // Last page: paddedChunk == chunk (no extra nulls added)
+    // Multi-page: paddedChunk == chunk (no extra nulls added on any page)
 
     // Build the table body
     const tableData = paddedChunk.map((item) => {
@@ -248,8 +247,8 @@ export async function buildBillPDFDoc(bill, lineItems) {
           data.cell.styles.fontSize   = F_TABLE_TAX;
           data.cell.styles.minCellHeight = 8;
         }
-        // Blank padding rows (non-last pages only): near-invisible grid lines, no text
-        if (data.section === 'body' && data.row.index >= chunk.length && !isLastPage) {
+        // Blank padding rows (single-page bills only): near-invisible grid lines
+        if (isSinglePage && data.section === 'body' && data.row.index >= chunk.length && data.row.index < ITEMS_PER_PAGE) {
           data.cell.styles.fontStyle = 'normal';
           data.cell.styles.textColor = [200, 200, 200]; // near-invisible, just the grid
         }
