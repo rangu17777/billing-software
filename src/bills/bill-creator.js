@@ -36,6 +36,7 @@ let billData = {
   grand_total: 0,
   balance: 0,
   amount_in_words: 'Zero Only',
+  status: 'pending',
   lineItems: [newBlankRow(1)]
 };
 
@@ -71,6 +72,7 @@ export async function render(container, params = {}) {
     sgstManual: false, cgstManual: false,
     subtotal: 0, sgst: 0, cgst: 0,
     grand_total: 0, balance: 0, amount_in_words: 'Zero Only',
+    status: 'pending',
     lineItems: [newBlankRow(1)]
   };
 
@@ -145,6 +147,7 @@ async function loadBillForEdit(billId) {
   billData.client_gst_no    = bill.client_gst_no || '';
   billData.advance          = parseFloat(bill.advance) || 0;
   billData.previous_due     = parseFloat(bill.previous_due) || 0;
+  billData.status           = bill.status || 'pending';
   billData.subtotal         = parseFloat(bill.subtotal) || 0;
   billData.sgst             = parseFloat(bill.sgst) || 0;
   billData.cgst             = parseFloat(bill.cgst) || 0;
@@ -1655,7 +1658,8 @@ async function doActualSave(container, mc) {
     advance: billData.advance,
     previous_due: billData.previous_due || 0,
     balance: billData.balance,
-    amount_in_words: billData.amount_in_words
+    amount_in_words: billData.amount_in_words,
+    status: billData.status || 'pending'
   };
 
   const itemsPayload = (billId) => billData.lineItems.map(item => ({
