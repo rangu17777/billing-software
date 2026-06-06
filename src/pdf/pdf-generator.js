@@ -442,16 +442,22 @@ export async function buildBillPDFDoc(bill, lineItems) {
       doc.text(prevDue > 0 ? fmt(prevDue) : '--', rfVX, footY + rowH4 * 2.65, { align: 'right' });
     }
 
-    // Row 4 — Balance (bold + navy — final amount owed, most prominent)
-    doc.setFillColor(240, 240, 250);   // very subtle blue-grey tint
+    // Row 4 — Balance (navy fill normally; deep green + 'PAID ✓' when collected)
+    const isCollected = bill.status === 'collected';
+    const DEEP_GREEN = [27, 94, 32];
+    doc.setFillColor(...(isCollected ? DEEP_GREEN : NAVY));
     doc.rect(rightFBX, footY + rowH4 * 3, rightFBW, rowH4, 'F');
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(F_TOTAL_HEAD);     // same size as Total row for emphasis
-    doc.setTextColor(...NAVY);
-    doc.text('Balance', rfX, footY + rowH4 * 3.65);
+    doc.setFontSize(F_TOTAL_HEAD);
+    doc.setTextColor(...WHITE);
+    doc.text(isCollected ? 'PAID' : 'Balance', rfX, footY + rowH4 * 3.65);
     if (isLastPage) {
-      const bal = parseFloat(bill.balance || 0);
-      doc.text(bal > 0 ? fmt(bal) : '--', rfVX, footY + rowH4 * 3.65, { align: 'right' });
+      if (isCollected) {
+        doc.text('PAID IN FULL', rfVX, footY + rowH4 * 3.65, { align: 'right' });
+      } else {
+        const bal = parseFloat(bill.balance || 0);
+        doc.text(bal > 0 ? fmt(bal) : '--', rfVX, footY + rowH4 * 3.65, { align: 'right' });
+      }
     }
 
     footY += FOOT_BOX_H + 3;

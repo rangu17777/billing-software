@@ -29,6 +29,7 @@ export function exportBillsToExcel(billsList) {
     'Grand Total (₹)': b.grand_total,
     'Advance Paid (₹)': b.advance,
     'Balance Due (₹)': b.balance,
+    'Status': b.status === 'collected' ? 'Collected ✓' : 'Pending',
   }));
 
   // Create sheet
@@ -50,7 +51,8 @@ export function exportBillsToExcel(billsList) {
     { wch: 12 }, // CGST
     { wch: 16 }, // Grand Total
     { wch: 16 }, // Advance Paid
-    { wch: 16 }  // Balance Due
+    { wch: 16 }, // Balance Due
+    { wch: 14 }  // Status
   ];
 
   // Write and download file

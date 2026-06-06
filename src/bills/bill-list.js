@@ -8,6 +8,7 @@ import { exportBillsToExcel } from '../excel/excel-export.js';
 
 let bills = [];
 let searchQuery = '';
+let activeTab = 'all'; // 'all' | 'pending' | 'collected'
 
 export async function render(container) {
   // Skeleton loader first
@@ -35,22 +36,35 @@ async function fetchBills() {
 }
 
 function renderPage(container) {
-  const filtered = bills.filter(b =>
+  // ── Status-aware metrics ──────────────────────────────────────────────────
+  let totalBilled = 0;
+  let totalCollected = 0;
+  let totalBalance = 0;
+  let collectedCount = 0;
+
+  bills.forEach(b => {
+    totalBilled += parseFloat(b.grand_total) || 0;
+    if (b.status === 'collected') {
+      totalCollected += parseFloat(b.grand_total) || 0;
+      collectedCount++;
+    } else {
+      totalCollected += parseFloat(b.advance) || 0;
+      totalBalance  += parseFloat(b.balance)  || 0;
+    }
+  });
+
+  // ── Search + tab filter ───────────────────────────────────────────────────
+  const searched = bills.filter(b =>
     String(b.bill_no).includes(searchQuery) ||
     (b.client_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     (b.client_site_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     (b.client_mobile || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Calculate metrics
-  let totalBilled = 0;
-  let totalCollected = 0;
-  let totalBalance = 0;
-
-  bills.forEach(b => {
-    totalBilled += parseFloat(b.grand_total) || 0;
-    totalCollected += parseFloat(b.advance) || 0;
-    totalBalance += parseFloat(b.balance) || 0;
+  const filtered = searched.filter(b => {
+    if (activeTab === 'pending')   return (b.status || 'pending') === 'pending';
+    if (activeTab === 'collected') return b.status === 'collected';
+    return true;
   });
 
   const formatDate = (dateStr) => {
@@ -60,28 +74,48 @@ function renderPage(container) {
     return dateStr;
   };
 
+  const fmt = n => parseFloat(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+
   const contentHtml = `
     <div class="bills-list-page anim-fade-in">
+
       <!-- KPI cards -->
       <div class="flex gap-3 mb-3" style="flex-wrap: wrap">
-        <div class="card card-stat card-hover" style="flex: 1; min-width: 180px">
-          <div class="text-muted">Total Billed</div>
+        <div class="card card-stat card-hover" style="flex: 1; min-width: 160px; position:relative">
+          <div class="text-muted" style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Total Billed</div>
           <div style="font-size: 1.8rem; font-weight: 800; color: var(--color-navy); margin-top: 4px">
-            ₹${totalBilled.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            ₹${fmt(totalBilled)}
           </div>
+          <div style="font-size:var(--text-xs);color:var(--color-muted);margin-top:2px">${bills.length} invoice${bills.length !== 1 ? 's' : ''}</div>
         </div>
-        <div class="card card-stat card-hover" style="flex: 1; min-width: 180px; border-left-color: var(--color-success)">
-          <div class="text-muted">Total Collected</div>
+        <div class="card card-stat card-hover" style="flex: 1; min-width: 160px; border-left-color: var(--color-success); position:relative">
+          <div class="text-muted" style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Amount Collected</div>
           <div style="font-size: 1.8rem; font-weight: 800; color: var(--color-success); margin-top: 4px">
-            ₹${totalCollected.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            ₹${fmt(totalCollected)}
           </div>
+          <div style="font-size:var(--text-xs);color:var(--color-muted);margin-top:2px">Advances + fully paid</div>
         </div>
-        <div class="card card-stat card-hover" style="flex: 1; min-width: 180px; border-left-color: var(--color-primary-orange)">
-          <div class="text-muted">Outstanding Balance</div>
+        <div class="card card-stat card-hover" style="flex: 1; min-width: 160px; border-left-color: var(--color-primary-orange); position:relative">
+          <div class="text-muted" style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Outstanding Balance</div>
           <div style="font-size: 1.8rem; font-weight: 800; color: var(--color-primary-orange); margin-top: 4px">
-            ₹${totalBalance.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            ₹${fmt(totalBalance)}
           </div>
+          <div style="font-size:var(--text-xs);color:var(--color-muted);margin-top:2px">Pending receivables</div>
         </div>
+        <div class="card card-stat card-hover" style="flex: 1; min-width: 160px; border-left-color: #2E7D32; position:relative">
+          <div class="text-muted" style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Collected Bills</div>
+          <div style="font-size: 1.8rem; font-weight: 800; color: #2E7D32; margin-top: 4px">
+            ${collectedCount}
+          </div>
+          <div style="font-size:var(--text-xs);color:var(--color-muted);margin-top:2px">Fully paid invoices</div>
+        </div>
+      </div>
+
+      <!-- Tab filter bar -->
+      <div class="bl-tabs" style="display:flex;gap:6px;margin-bottom:12px">
+        <button class="bl-tab ${activeTab === 'all'       ? 'bl-tab-active' : ''}" data-tab="all">All (${bills.length})</button>
+        <button class="bl-tab ${activeTab === 'pending'   ? 'bl-tab-active' : ''}" data-tab="pending">⏳ Pending (${bills.filter(b => (b.status || 'pending') === 'pending').length})</button>
+        <button class="bl-tab ${activeTab === 'collected' ? 'bl-tab-active' : ''}" data-tab="collected">✅ Collected (${collectedCount})</button>
       </div>
 
       <!-- Controls -->
@@ -108,26 +142,78 @@ function renderPage(container) {
 
       <!-- Table Section -->
       <div class="card" style="padding: 0; overflow: hidden">
-        ${bills.length === 0 && filtered.length === 0 ? renderSkeletonRows() : renderBillsTable(filtered, formatDate)}
+        ${bills.length === 0 ? renderSkeletonRows() : renderBillsTable(filtered, formatDate)}
       </div>
     </div>
   `;
 
   container.innerHTML = renderShell('bills', 'Invoice / Bill Directory', contentHtml);
   attachShellEvents(container);
-  
-  if (bills.length > 0 || filtered.length > 0) {
+
+  // Inject tab styles
+  injectTabStyles(container);
+
+  if (bills.length > 0) {
     attachLocalEvents(container, filtered);
   }
 }
 
+function injectTabStyles(container) {
+  if (container.querySelector('#bl-tab-styles')) return;
+  const style = document.createElement('style');
+  style.id = 'bl-tab-styles';
+  style.textContent = `
+    .bl-tab {
+      padding: 7px 18px;
+      border-radius: 999px;
+      border: 1.5px solid var(--color-border);
+      background: var(--color-surface-card);
+      color: var(--color-muted);
+      font-family: var(--font-body);
+      font-size: var(--text-sm);
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 180ms ease;
+    }
+    .bl-tab:hover { border-color: var(--color-navy); color: var(--color-navy); }
+    .bl-tab-active {
+      background: var(--color-navy);
+      color: #fff !important;
+      border-color: var(--color-navy) !important;
+    }
+    .bl-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: var(--text-xs);
+      font-weight: 700;
+      cursor: pointer;
+      border: 1.5px solid transparent;
+      transition: all 180ms ease;
+      white-space: nowrap;
+    }
+    .bl-status-badge:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.14); }
+    .bl-status-pending   { background: #FFF3E0; color: #E65100; border-color: #FFCC80; }
+    .bl-status-collected { background: #E8F5E9; color: #1B5E20; border-color: #A5D6A7; }
+  `;
+  document.head.appendChild(style);
+}
+
 function renderBillsTable(list, formatDate) {
   if (list.length === 0) {
+    const emptyMsg = activeTab === 'collected'
+      ? 'No collected bills yet. Mark a bill as paid to see it here.'
+      : activeTab === 'pending'
+      ? 'No pending bills! Everything is collected. 🎉'
+      : 'No bills found. Try modifying your search query or create a new bill.';
+
     return `
       <div class="empty-state">
-        <div class="empty-state-icon">🧾</div>
+        <div class="empty-state-icon">${activeTab === 'collected' ? '✅' : '🧾'}</div>
         <div class="empty-state-title">No Bills Found</div>
-        <div class="empty-state-desc">Try modifying your search query or create a new bill.</div>
+        <div class="empty-state-desc">${emptyMsg}</div>
       </div>
     `;
   }
@@ -143,20 +229,38 @@ function renderBillsTable(list, formatDate) {
           <th style="text-align: right">Grand Total</th>
           <th style="text-align: right">Advance</th>
           <th style="text-align: right">Balance</th>
-          <th style="width: 120px; text-align: center">Actions</th>
+          <th style="width: 110px; text-align: center">Status</th>
+          <th style="width: 140px; text-align: center">Actions</th>
         </tr>
       </thead>
       <tbody>
-        ${list.map(b => `
-          <tr data-id="${b.id}">
+        ${list.map(b => {
+          const isCollected = b.status === 'collected';
+          const balance = isCollected ? 0 : parseFloat(b.balance || 0);
+          const balanceColor = isCollected ? 'var(--color-success)' : (balance > 0 ? 'var(--color-primary-orange)' : 'var(--color-muted)');
+          return `
+          <tr data-id="${b.id}" style="${isCollected ? 'background: rgba(46,125,50,0.03)' : ''}">
             <td class="font-semibold text-mono" style="color: var(--color-navy)">#${b.bill_no}</td>
             <td>${formatDate(b.date)}</td>
             <td class="font-semibold">${escapeHtml(b.client_name)}</td>
             <td>${escapeHtml(b.client_site_name || '—')}</td>
             <td class="font-semibold text-mono text-right" style="color: var(--color-black)">₹${parseFloat(b.grand_total).toLocaleString('en-IN')}</td>
-            <td class="text-mono text-right" style="color: var(--color-success)">₹${parseFloat(b.advance).toLocaleString('en-IN')}</td>
-            <td class="font-semibold text-mono text-right" style="color: ${b.balance > 0 ? 'var(--color-primary-orange)' : 'var(--color-muted)'}">
-              ₹${parseFloat(b.balance).toLocaleString('en-IN')}
+            <td class="text-mono text-right" style="color: var(--color-success)">₹${parseFloat(b.advance || 0).toLocaleString('en-IN')}</td>
+            <td class="font-semibold text-mono text-right" style="color: ${balanceColor}">
+              ${isCollected ? '₹0' : `₹${balance.toLocaleString('en-IN')}`}
+            </td>
+            <td style="text-align: center">
+              <button
+                class="bl-status-badge ${isCollected ? 'bl-status-collected' : 'bl-status-pending'} toggle-status-btn"
+                data-id="${b.id}"
+                data-status="${b.status || 'pending'}"
+                data-bill-no="${b.bill_no}"
+                data-grand-total="${b.grand_total}"
+                data-advance="${b.advance || 0}"
+                title="Click to toggle collection status"
+              >
+                ${isCollected ? '✅ Collected' : '⏳ Pending'}
+              </button>
             </td>
             <td style="text-align: center">
               <div class="flex gap-1" style="justify-content: center">
@@ -175,7 +279,7 @@ function renderBillsTable(list, formatDate) {
               </div>
             </td>
           </tr>
-        `).join('')}
+        `}).join('')}
       </tbody>
     </table>
   `;
@@ -192,19 +296,27 @@ function renderSkeletonRows() {
 }
 
 function attachLocalEvents(container, filteredList) {
-  // Search
-  const searchInput = container.querySelector('#bill-search');
-  searchInput.addEventListener('input', (e) => {
-    searchQuery = e.target.value;
-    renderPage(container);
-    // Refocus search & set cursor to end
-    const input = document.getElementById('bill-search');
-    input.focus();
-    input.setSelectionRange(input.value.length, input.value.length);
+  // Tab switching
+  container.querySelectorAll('.bl-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      activeTab = tab.getAttribute('data-tab');
+      renderPage(container);
+    });
   });
 
+  // Search
+  const searchInput = container.querySelector('#bill-search');
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      searchQuery = e.target.value;
+      renderPage(container);
+      const input = document.getElementById('bill-search');
+      if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+    });
+  }
+
   // Excel Export
-  container.querySelector('#excel-export-btn').addEventListener('click', () => {
+  container.querySelector('#excel-export-btn')?.addEventListener('click', () => {
     if (filteredList.length === 0) {
       showToast('No bills in listing to export.', 'warning');
       return;
@@ -213,29 +325,40 @@ function attachLocalEvents(container, filteredList) {
     showToast('Spreadsheet downloaded successfully.', 'success');
   });
 
-  // Action Buttons
+  // Toggle Status Badges
+  container.querySelectorAll('.toggle-status-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id          = btn.getAttribute('data-id');
+      const curStatus   = btn.getAttribute('data-status');
+      const billNo      = btn.getAttribute('data-bill-no');
+      const grandTotal  = parseFloat(btn.getAttribute('data-grand-total') || 0);
+      const advance     = parseFloat(btn.getAttribute('data-advance') || 0);
+      const bill        = bills.find(b => b.id === id);
+      if (!bill) return;
+      toggleBillStatus(bill, curStatus, billNo, grandTotal, advance, container);
+    });
+  });
+
+  // Print PDF
   container.querySelectorAll('.print-bill-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      const id = btn.getAttribute('data-id');
-      const bill = bills.find(b => b.id === id);
-      if (bill) {
-        await downloadPDF(bill, btn);
-      }
+      const bill = bills.find(b => b.id === btn.getAttribute('data-id'));
+      if (bill) await downloadPDF(bill, btn);
     });
   });
 
+  // WhatsApp
   container.querySelectorAll('.whatsapp-bill-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      const id = btn.getAttribute('data-id');
-      const bill = bills.find(b => b.id === id);
-      if (bill) {
-        await shareViaWhatsApp(bill, btn);
-      }
+      const bill = bills.find(b => b.id === btn.getAttribute('data-id'));
+      if (bill) await shareViaWhatsApp(bill, btn);
     });
   });
 
+  // Edit
   container.querySelectorAll('.edit-bill-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -243,15 +366,58 @@ function attachLocalEvents(container, filteredList) {
     });
   });
 
+  // Delete
   container.querySelectorAll('.delete-bill-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const id = btn.getAttribute('data-id');
-      const bill = bills.find(b => b.id === id);
-      if (bill) {
-        confirmDeleteBill(bill, container);
-      }
+      const bill = bills.find(b => b.id === btn.getAttribute('data-id'));
+      if (bill) confirmDeleteBill(bill, container);
     });
+  });
+}
+
+// ── Toggle collection status ─────────────────────────────────────────────────
+function toggleBillStatus(bill, curStatus, billNo, grandTotal, advance, container) {
+  const isCurrentlyCollected = curStatus === 'collected';
+  const fmt = n => parseFloat(n || 0).toLocaleString('en-IN');
+
+  const title = isCurrentlyCollected
+    ? `Revert Bill #${billNo} to Pending?`
+    : `Mark Bill #${billNo} as Collected?`;
+
+  const message = isCurrentlyCollected
+    ? `Bill #${billNo} will be marked as pending again. The outstanding balance of ₹${fmt(grandTotal - advance)} will be restored.`
+    : `Bill #${billNo} for ₹${fmt(grandTotal)} will be marked as fully collected (paid). This moves the full amount to "Total Collected".`;
+
+  showConfirm(title, message, async () => {
+    const newStatus  = isCurrentlyCollected ? 'pending' : 'collected';
+    const newBalance = isCurrentlyCollected ? (grandTotal - advance) : 0;
+
+    try {
+      const { error } = await supabase
+        .from('bills')
+        .update({ status: newStatus, balance: newBalance })
+        .eq('id', bill.id);
+
+      if (error) throw error;
+
+      // Update local state immediately
+      const idx = bills.findIndex(b => b.id === bill.id);
+      if (idx !== -1) {
+        bills[idx].status  = newStatus;
+        bills[idx].balance = newBalance;
+      }
+
+      showToast(
+        isCurrentlyCollected
+          ? `Bill #${billNo} reverted to pending.`
+          : `Bill #${billNo} marked as collected! ✅`,
+        'success'
+      );
+      renderPage(container);
+    } catch (err) {
+      handleError(err);
+    }
   });
 }
 
@@ -262,12 +428,8 @@ async function shareViaWhatsApp(bill, buttonEl) {
 
   try {
     const { data: lineItems, error } = await supabase
-      .from('bill_items')
-      .select('*')
-      .eq('bill_id', bill.id)
-      .order('sr_no', { ascending: true });
+      .from('bill_items').select('*').eq('bill_id', bill.id).order('sr_no', { ascending: true });
     if (error) throw error;
-
     await sendBillViaWhatsApp(bill, lineItems);
   } catch (error) {
     handleError(error);
@@ -284,13 +446,8 @@ async function downloadPDF(bill, buttonEl) {
 
   try {
     const { data: lineItems, error } = await supabase
-      .from('bill_items')
-      .select('*')
-      .eq('bill_id', bill.id)
-      .order('sr_no', { ascending: true });
-
+      .from('bill_items').select('*').eq('bill_id', bill.id).order('sr_no', { ascending: true });
     if (error) throw error;
-    
     await generateBillPDF(bill, lineItems);
     showToast(`Invoice #${bill.bill_no} PDF generated.`, 'success');
   } catch (error) {
@@ -306,14 +463,10 @@ function confirmDeleteBill(bill, container) {
     `Delete Bill #${bill.bill_no}?`,
     `Permanently delete Bill #${bill.bill_no} for ${bill.client_name}? All line items will also be deleted. This cannot be undone.`,
     async () => {
-      // Visually fade the row out while the network delete runs in parallel.
       const row = container.querySelector(`tr[data-id="${bill.id}"]`);
       if (row) row.classList.add('row-exiting');
       try {
-        const { error } = await supabase
-          .from('bills')
-          .delete()
-          .eq('id', bill.id);
+        const { error } = await supabase.from('bills').delete().eq('id', bill.id);
         if (error) throw error;
         showToast('Bill deleted successfully.', 'success');
         await fetchBills();
@@ -326,7 +479,6 @@ function confirmDeleteBill(bill, container) {
   );
 }
 
-// Helper to escape HTML tags to avoid XSS
 function escapeHtml(str) {
   if (!str) return '';
   return str

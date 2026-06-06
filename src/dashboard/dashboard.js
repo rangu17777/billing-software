@@ -1,13 +1,13 @@
 import { supabase } from '../shared/supabase.js';
 import { renderShell, attachShellEvents } from '../shared/shell.js';
 import { handleError } from '../shared/error-handler.js';
-import { showToast } from '../shared/toast.js';
+import { showToast, showConfirm } from '../shared/toast.js';
 import { generateBillPDF } from '../pdf/pdf-generator.js';
 import { checkMilestone } from '../shared/confetti.js';
 import { iconRupee, iconCheckCircle, iconHourglass, iconReceipt } from '../shared/icons.js';
 import './dashboard.css';
 
-let stats = { totalBilled: 0, totalCollected: 0, totalBalance: 0, invoiceCount: 0 };
+let stats = { totalBilled: 0, totalCollected: 0, totalBalance: 0, invoiceCount: 0, collectedCount: 0 };
 let recentBills = [];
 let loading = true;
 
@@ -27,13 +27,18 @@ async function loadDashboardData() {
 
     if (error) throw error;
 
-    stats = { totalBilled: 0, totalCollected: 0, totalBalance: 0, invoiceCount: bills ? bills.length : 0 };
+    stats = { totalBilled: 0, totalCollected: 0, totalBalance: 0, invoiceCount: bills ? bills.length : 0, collectedCount: 0 };
 
     if (bills && bills.length > 0) {
       bills.forEach(b => {
-        stats.totalBilled    += parseFloat(b.grand_total) || 0;
-        stats.totalCollected += parseFloat(b.advance)     || 0;
-        stats.totalBalance   += parseFloat(b.balance)     || 0;
+        stats.totalBilled += parseFloat(b.grand_total) || 0;
+        if (b.status === 'collected') {
+          stats.totalCollected += parseFloat(b.grand_total) || 0;
+          stats.collectedCount++;
+        } else {
+          stats.totalCollected += parseFloat(b.advance)     || 0;
+          stats.totalBalance   += parseFloat(b.balance)     || 0;
+        }
       });
       recentBills = bills.slice(0, 8);
     } else {
@@ -261,11 +266,11 @@ function kpiCards() {
         <div class="kpi-value rupee" data-count="${stats.totalBilled}" data-prefix="₹">₹${fmt(stats.totalBilled)}</div>
         <div class="kpi-sub">SGST + CGST included</div>
       </div>
-      <div class="kpi-card kpi-green">
+        <div class="kpi-card kpi-green">
         <div class="kpi-icon green">${iconCheckCircle}</div>
         <div class="kpi-label">Amount Collected</div>
         <div class="kpi-value rupee" data-count="${stats.totalCollected}" data-prefix="₹">₹${fmt(stats.totalCollected)}</div>
-        <div class="kpi-sub">Advances received</div>
+        <div class="kpi-sub">Advances + fully paid · <strong>${stats.collectedCount}</strong> bill${stats.collectedCount !== 1 ? 's' : ''} fully collected</div>
       </div>
       <div class="kpi-card kpi-orange">
         <div class="kpi-icon orange">${iconHourglass}</div>
@@ -285,16 +290,17 @@ function kpiCards() {
 // ── RECENT BILLS TABLE ───────────────────────────────────────────────────────
 function recentBillsSection() {
   const tableBody = loading
-    ? `<tr><td colspan="7" style="padding:24px 16px">
+    ? `<tr><td colspan="8" style="padding:24px 16px">
         <div class="dash-skel"></div>
         <div class="dash-skel" style="animation-delay:.1s"></div>
         <div class="dash-skel" style="animation-delay:.2s"></div>
         <div class="dash-skel" style="animation-delay:.3s"></div>
       </td></tr>`
     : recentBills.length === 0
-      ? `<tr><td colspan="7" style="text-align:center;padding:40px 16px;color:#8a8a8e;font-size:0.84rem">No bills yet — create your first invoice!</td></tr>`
+      ? `<tr><td colspan="8" style="text-align:center;padding:40px 16px;color:#8a8a8e;font-size:0.84rem">No bills yet — create your first invoice!</td></tr>`
       : recentBills.map(b => {
-          const due = parseFloat(b.balance || 0);
+          const isCollected = b.status === 'collected';
+          const due = isCollected ? 0 : parseFloat(b.balance || 0);
           const adv = parseFloat(b.advance || 0);
           return `
             <tr>
@@ -303,7 +309,18 @@ function recentBillsSection() {
               <td style="font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(b.client_name)}</td>
               <td><span class="amt-billed">₹${fmt(b.grand_total)}</span></td>
               <td><span class="${adv > 0 ? 'amt-paid' : 'amt-zero'}">₹${fmt(adv)}</span></td>
-              <td><span class="${due > 0 ? 'amt-due' : 'amt-zero'}">₹${fmt(due)}</span></td>
+              <td><span class="${due > 0 ? 'amt-due' : 'amt-zero'}">${isCollected ? '₹0' : '₹' + fmt(due)}</span></td>
+              <td style="text-align:center">
+                <button class="dash-status-badge ${isCollected ? 'dash-status-collected' : 'dash-status-pending'} dash-toggle-status"
+                  data-id="${b.id}"
+                  data-status="${b.status || 'pending'}"
+                  data-bill-no="${b.bill_no}"
+                  data-grand-total="${b.grand_total}"
+                  data-advance="${b.advance || 0}"
+                  title="Click to toggle collection status">
+                  ${isCollected ? '✅ Collected' : '⏳ Pending'}
+                </button>
+              </td>
               <td style="text-align:center">
                 <button class="dash-print-btn quick-print-btn" data-id="${b.id}" title="Download PDF">🖨️</button>
               </td>
@@ -326,6 +343,7 @@ function recentBillsSection() {
               <th>Grand Total</th>
               <th>Advance</th>
               <th>Balance Due</th>
+              <th style="text-align:center">Status</th>
               <th style="text-align:center">PDF</th>
             </tr>
           </thead>
@@ -463,8 +481,8 @@ function attachLocalEvents(container) {
     animateCounters(container);
     attachInsightRotation(container);
     attachKpiTilt(container);
-    // Milestone confetti — check after data is loaded
     checkMilestone(stats.invoiceCount);
+    injectDashStatusStyles();
   }
 
   container.querySelectorAll('.quick-print-btn').forEach(btn => {
@@ -473,6 +491,19 @@ function attachLocalEvents(container) {
       const id = btn.getAttribute('data-id');
       const bill = recentBills.find(b => b.id === id);
       if (bill) await downloadPDF(bill, btn);
+    });
+  });
+
+  container.querySelectorAll('.dash-toggle-status').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id         = btn.getAttribute('data-id');
+      const curStatus  = btn.getAttribute('data-status');
+      const billNo     = btn.getAttribute('data-bill-no');
+      const grandTotal = parseFloat(btn.getAttribute('data-grand-total') || 0);
+      const advance    = parseFloat(btn.getAttribute('data-advance') || 0);
+      const bill       = recentBills.find(b => b.id === id);
+      if (bill) toggleBillStatusDash(bill, curStatus, billNo, grandTotal, advance, container);
     });
   });
 }
@@ -493,4 +524,66 @@ async function downloadPDF(bill, btn) {
     btn.disabled = false;
     btn.innerHTML = orig;
   }
+}
+
+// ── Toggle collection status from dashboard ───────────────────────────────────
+function toggleBillStatusDash(bill, curStatus, billNo, grandTotal, advance, container) {
+  const isCurrentlyCollected = curStatus === 'collected';
+  const fmtN = n => parseFloat(n || 0).toLocaleString('en-IN');
+
+  const title = isCurrentlyCollected
+    ? `Revert Bill #${billNo} to Pending?`
+    : `Mark Bill #${billNo} as Collected?`;
+
+  const message = isCurrentlyCollected
+    ? `Bill #${billNo} will be marked as pending again. The outstanding balance of ₹${fmtN(grandTotal - advance)} will be restored.`
+    : `Bill #${billNo} for ₹${fmtN(grandTotal)} will be marked as fully collected (paid). This moves the full amount to "Amount Collected".`;
+
+  showConfirm(title, message, async () => {
+    const newStatus  = isCurrentlyCollected ? 'pending' : 'collected';
+    const newBalance = isCurrentlyCollected ? (grandTotal - advance) : 0;
+    try {
+      const { error } = await supabase
+        .from('bills')
+        .update({ status: newStatus, balance: newBalance })
+        .eq('id', bill.id);
+      if (error) throw error;
+      showToast(
+        isCurrentlyCollected
+          ? `Bill #${billNo} reverted to pending.`
+          : `Bill #${billNo} marked as collected! ✅`,
+        'success'
+      );
+      await loadDashboardData();
+      renderDashboard(container);
+    } catch (err) {
+      handleError(err);
+    }
+  });
+}
+
+// Inject status badge styles for the dashboard table
+function injectDashStatusStyles() {
+  if (document.getElementById('dash-status-styles')) return;
+  const style = document.createElement('style');
+  style.id = 'dash-status-styles';
+  style.textContent = `
+    .dash-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: 1.5px solid transparent;
+      transition: all 180ms ease;
+      white-space: nowrap;
+    }
+    .dash-status-badge:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.14); }
+    .dash-status-pending   { background: #FFF3E0; color: #E65100; border-color: #FFCC80; }
+    .dash-status-collected { background: #E8F5E9; color: #1B5E20; border-color: #A5D6A7; }
+  `;
+  document.head.appendChild(style);
 }
